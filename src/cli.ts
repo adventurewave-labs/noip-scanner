@@ -35,6 +35,7 @@ interface ScanFlags {
   ignoreFile?: string;
   ignore?: boolean;
   bundle?: string;
+  signKey?: string;
   importSarif?: string[];
   contexts?: string[];
   allContexts?: boolean;
@@ -61,6 +62,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   if (flags.manifests?.length && (demo || flags.kubeconfig || flags.context || flags.contexts?.length || flags.allContexts)) {
     throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig, --context, --contexts or --all-contexts`);
   }
+  if (flags.signKey && !flags.bundle) throw new Error('--sign-key needs --bundle');
   if (flags.contexts?.length || flags.allContexts) return runFleet(flags, opts);
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
@@ -77,7 +79,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   }
 
   if (flags.bundle) {
-    writeBundle(flags.bundle, report, flags.lang);
+    writeBundle(flags.bundle, report, flags.lang, { signKeyPem: flags.signKey ? readFileSync(flags.signKey, 'utf8') : undefined });
     warn(`evidence bundle written to ${flags.bundle} (verify: noip verify-bundle ${flags.bundle}  or  sha256sum -c SHA256SUMS)`);
   }
   const body =
@@ -142,7 +144,8 @@ export function buildCli(): Command {
     .option('--include-system', 'also scan kube-system, kube-public and kube-node-lease')
     .option('--exclude-namespace <ns...>', 'additional namespaces to skip')
     .option('--manifests <paths...>', 'scan YAML files/directories offline instead of a cluster ("-" reads stdin, e.g. helm template … | noip scan --manifests -)')
-    .option('--bundle <dir>', 'also write an audit evidence bundle: json/md/html/sarif + SHA256SUMS + in-toto statement')
+    .option('--bundle <dir>', 'also write an audit evidence bundle: json/md/html/sarif/oscal + SHA256SUMS + in-toto statement')
+    .option('--sign-key <pem>', 'sign the bundle\'s in-toto statement as a DSSE envelope with this private key (Ed25519 or ECDSA P-256, PEM)')
     .option('--ignore-file <path>', `accepted-risk suppressions with reason/owner/expiry (default: ./${DEFAULT_IGNORE_FILE} if present)`)
     .option('--no-ignore', 'ignore all suppressions and report every finding')
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
@@ -233,11 +236,15 @@ export function buildCli(): Command {
 
   program
     .command('verify-bundle')
-    .description('Verify an evidence bundle: file hashes, in-toto subjects and report provenance')
+    .description('Verify an evidence bundle: file hashes, in-toto subjects, report provenance and (with --key) the DSSE signature')
     .argument('<dir>', 'bundle directory written by `noip scan --bundle`')
-    .action((dir: string) => {
-      const v = verifyBundle(dir);
-      if (v.ok) warn(`bundle OK: ${v.files} files verified`);
+    .option('--key <pem>', 'public key (Ed25519 or ECDSA P-256, PEM) the bundle must be signed with')
+    .action((dir: string, flags: { key?: string }) => {
+      const v = verifyBundle(dir, { publicKeyPem: flags.key ? readFileSync(flags.key, 'utf8') : undefined });
+      if (v.ok) {
+        warn(`bundle OK: ${v.files} files verified; signature ${v.signature}`);
+        if (v.signature === 'unverified') warn(`bundle is signed; pass --key <public.pem> to check the signature`);
+      }
       else {
         for (const p of v.problems) warn(`bundle FAIL: ${p}`);
         process.exitCode = EXIT.VERIFY_FAILED;

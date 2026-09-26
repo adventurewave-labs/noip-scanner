@@ -24,7 +24,7 @@ describe('evidence bundle', () => {
     expect(st.predicateType).toBe(PREDICATE_TYPE);
     expect(st.subject.map((s: { name: string }) => s.name)).toEqual(['report.json', 'report.md', 'report.html', 'report.sarif', 'report.oscal.json']);
     expect(st.predicate).toMatchObject({ source: 'demo', scanner: { gitSha: 'test-sha' }, scannedAt: '2026-09-26T00:00:00.000Z' });
-    expect(verifyBundle(d)).toEqual({ ok: true, problems: [], files: 6 });
+    expect(verifyBundle(d)).toEqual({ ok: true, problems: [], files: 6, signature: 'unsigned' });
   });
 
   it('refuses to write into a non-empty directory', () => {
@@ -44,7 +44,7 @@ describe('evidence bundle', () => {
 
     const d3 = fresh();
     rmSync(join(d3, SUMS_FILE));
-    expect(verifyBundle(d3)).toEqual({ ok: false, problems: ['SHA256SUMS missing'], files: 0 });
+    expect(verifyBundle(d3)).toEqual({ ok: false, problems: ['SHA256SUMS missing'], files: 0, signature: 'unsigned' });
 
     // Consistently re-hashed but provenance swapped: caught by the cross-check.
     const d4 = fresh();

@@ -5,13 +5,14 @@ import type { Report } from '../types.js';
 import { renderHtml } from './html.js';
 import type { Lang } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
+import { DSSE_FILE, INTOTO_PAYLOAD_TYPE, signEnvelope, verifyEnvelope, type Envelope } from './dsse.js';
 import { renderOscal } from './oscal.js';
 import { renderSarif } from './sarif.js';
 
 /**
  * Audit evidence bundle: every report format + SHA256SUMS + an in-toto v1 Statement binding the
- * files to the scan's provenance. Unsigned by design (no keys in the tool); sign it with your own
- * tooling, e.g. `cosign attest-blob`, if the engagement needs non-repudiation.
+ * files to the scan's provenance. Optionally signed: with `--sign-key` the statement is also written as a
+ * DSSE envelope signed with the operator's own key (NOIP never generates or stores keys).
  */
 export const PREDICATE_TYPE = 'https://github.com/adventurewave-labs/noip-scanner/attestation/scan/v1';
 export const STATEMENT_FILE = 'provenance.intoto.json';
@@ -48,7 +49,7 @@ export function inTotoStatement(r: Report, digests: Record<string, string>) {
 }
 
 /** Write the bundle and return the SHA256SUMS content. Refuses to write into a non-empty directory. */
-export function writeBundle(dir: string, r: Report, lang: Lang = 'en'): string {
+export function writeBundle(dir: string, r: Report, lang: Lang = 'en', opts: { signKeyPem?: string } = {}): string {
   mkdirSync(dir, { recursive: true });
   if (readdirSync(dir).length) throw new Error(`--bundle: ${dir} is not empty; refusing to mix evidence from different scans`);
   const files = bundleFiles(r, lang);
@@ -60,6 +61,11 @@ export function writeBundle(dir: string, r: Report, lang: Lang = 'en'): string {
   const statement = JSON.stringify(inTotoStatement(r, digests), null, 2) + '\n';
   writeFileSync(join(dir, STATEMENT_FILE), statement);
   digests[STATEMENT_FILE] = sha256(statement);
+  if (opts.signKeyPem) {
+    const env = JSON.stringify(signEnvelope(Buffer.from(statement, 'utf8'), opts.signKeyPem), null, 2) + '\n';
+    writeFileSync(join(dir, DSSE_FILE), env);
+    digests[DSSE_FILE] = sha256(env);
+  }
   // `sha256sum -c SHA256SUMS` compatible (two spaces, sorted).
   const sums = Object.keys(digests)
     .sort()
@@ -73,16 +79,18 @@ export interface BundleVerification {
   ok: boolean;
   problems: string[];
   files: number;
+  /** verified: DSSE signature checked with the given key; unverified: an envelope exists but no key was given. */
+  signature: 'verified' | 'unverified' | 'unsigned';
 }
 
 /** Recompute hashes, cross-check the in-toto subjects and the report's own provenance. */
-export function verifyBundle(dir: string): BundleVerification {
+export function verifyBundle(dir: string, opts: { publicKeyPem?: string } = {}): BundleVerification {
   const problems: string[] = [];
   let sums: string;
   try {
     sums = readFileSync(join(dir, SUMS_FILE), 'utf8');
   } catch {
-    return { ok: false, problems: [`${SUMS_FILE} missing`], files: 0 };
+    return { ok: false, problems: [`${SUMS_FILE} missing`], files: 0, signature: 'unsigned' };
   }
   const entries = sums.trim().split('\n').filter(Boolean).map((l) => {
     const m = /^([0-9a-f]{64}) {2}(.+)$/.exec(l);
@@ -115,7 +123,7 @@ export function verifyBundle(dir: string): BundleVerification {
       if (!listed || listed.sha !== s.digest.sha256) problems.push(`in-toto subject does not match ${SUMS_FILE}: ${s.name}`);
     }
     // The statement is what gets signed: everything else in SHA256SUMS must be one of its subjects.
-    const subjects = new Set([...st.subject.map((s) => s.name), STATEMENT_FILE]);
+    const subjects = new Set([...st.subject.map((s) => s.name), STATEMENT_FILE, DSSE_FILE]);
     for (const e of entries) if (!subjects.has(e.name)) problems.push(`${SUMS_FILE} lists a file that is not an in-toto subject: ${e.name}`);
     const r = JSON.parse(readFileSync(join(dir, 'report.json'), 'utf8')) as Report;
     if (r.provenance.scannedAt !== st.predicate.scannedAt || r.provenance.scanner.gitSha !== st.predicate.scanner.gitSha) {
@@ -124,5 +132,21 @@ export function verifyBundle(dir: string): BundleVerification {
   } catch (err) {
     problems.push(`cannot read ${STATEMENT_FILE} or report.json: ${(err as Error).message}`);
   }
-  return { ok: problems.length === 0, problems, files: entries.length };
+  const signed = entries.some((e) => e.name === DSSE_FILE);
+  let signature: BundleVerification['signature'] = signed ? 'unverified' : 'unsigned';
+  if (opts.publicKeyPem) {
+    if (!signed) problems.push(`--key given but the bundle has no ${DSSE_FILE}`);
+    else {
+      try {
+        const env = JSON.parse(readFileSync(join(dir, DSSE_FILE), 'utf8')) as Envelope;
+        if (env.payloadType !== INTOTO_PAYLOAD_TYPE) throw new Error(`payloadType is ${String(env.payloadType)}, expected ${INTOTO_PAYLOAD_TYPE}`);
+        const payload = verifyEnvelope(env, opts.publicKeyPem);
+        if (!payload.equals(readFileSync(join(dir, STATEMENT_FILE)))) throw new Error(`signed payload differs from ${STATEMENT_FILE}`);
+        signature = 'verified';
+      } catch (err) {
+        problems.push(`signature: ${(err as Error).message}`);
+      }
+    }
+  }
+  return { ok: problems.length === 0, problems, files: entries.length, signature };
 }

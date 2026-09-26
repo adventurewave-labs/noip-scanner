@@ -121,11 +121,23 @@ The bundle directory holds:
 
 - `report.json`, `report.md`, `report.html`, `report.sarif` and `report.oscal.json`
 - `SHA256SUMS`
-- `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the four reports and whose predicate is the scan's provenance
+- `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the five reports and whose predicate is the scan's provenance
 
 `verify-bundle` does five things: it recomputes every hash, rejects extra files, symlinks and path tricks, requires every listed file to be an in-toto subject, checks that the in-toto subjects match the sums, and cross-checks `report.json` against the statement. On failure it exits `4`.
 
-The bundle is **unsigned** because NOIP holds no keys. If an engagement needs signatures, sign the statement with your own tooling, for example `cosign attest-blob --predicate provenance.intoto.json …`. NOIP refuses to write into a non-empty directory, so evidence from different scans never gets mixed.
+**Signing (optional).** `--sign-key key.pem` also writes `provenance.intoto.dsse.json`: the statement's exact bytes in a [DSSE](https://github.com/secure-systems-lab/dsse) envelope, signed with your own Ed25519 or ECDSA P-256 private key (PKCS#8 PEM, unencrypted). NOIP never generates or stores keys. `noip verify-bundle <dir> --key public.pem` then also requires a valid signature over exactly that statement; without `--key` it reports the signature as unverified.
+
+```bash
+openssl genpkey -algorithm ed25519 -out noip.key && openssl pkey -in noip.key -pubout -out noip.pub
+noip scan --bundle evidence/2026-09-acme --sign-key noip.key
+noip verify-bundle evidence/2026-09-acme --key noip.pub
+# The envelope is standard DSSE, so Sigstore's cosign can check it too (checked with cosign v2.6.5, both key types):
+cosign verify-blob-attestation --key noip.pub --insecure-ignore-tlog=true \
+  --signature evidence/2026-09-acme/provenance.intoto.dsse.json \
+  --type https://github.com/adventurewave-labs/noip-scanner/attestation/scan/v1 evidence/2026-09-acme/report.json
+```
+
+There is no transparency log or keyless (OIDC) signing; key custody is the operator's. NOIP refuses to write into a non-empty directory, so evidence from different scans never gets mixed.
 
 ## Posture drift: `noip diff`
 
