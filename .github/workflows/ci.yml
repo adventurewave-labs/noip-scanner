@@ -153,6 +153,7 @@ jobs:
           grep -q '"status":"degraded"' health.json
           grep -q '"gitSha":"${{ github.sha }}"' health.json
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/api/scan)" = "401"
+          curl -fsS localhost:3000/openapi.json | grep -q '"openapi":"3.1.0"'
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" localhost:3000/api/discovery/cluster)" = "503"
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -X POST localhost:3000/api/report/explain)" = "501"
       - name: demo mode

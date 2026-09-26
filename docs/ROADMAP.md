@@ -74,7 +74,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 13 | Multi-context (fleet) scans: one report per cluster, `fleet.json`/`fleet.md`, and an unreachable cluster doesn't stop the run | shipped (`loop/r13-multi-context`) |
 | 14 | Paginated LIST (limit/continue, restart on 410) and a scale benchmark (10k pods in about 0.3 s) | shipped (`loop/r14-scale`) |
 | 15 | Property-based and fuzz tests (fast-check). These found and fixed a manifest-parser crash on unresolved aliases, and the parser now also has a bound on alias expansion. | shipped (`loop/r15-property-tests`) |
-| 16 | OpenAPI spec for the HTTP API | planned |
+| 16 | OpenAPI 3.1 spec (`/openapi.json`), plus contract tests that check every route's responses against it | shipped (`loop/r16-openapi`) |
 | 17 | NSA/CISA and NIST 800-190 reference mappings | planned |
 | 18 | Independent review #2, with fixes | planned |
 | 19 | Wrap-up | planned |

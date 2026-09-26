@@ -214,6 +214,7 @@ NOIP_API_TOKEN=$(openssl rand -hex 24) node dist/api/server.js     # or docker b
 
 | Route | Auth | Notes |
 |---|---|---|
+| `GET /openapi.json` | open | OpenAPI 3.1 description. The Report schema in it is the same JSON Schema that validates CLI output. |
 | `GET /health` | open | `ok` or `degraded`. Reports `degraded` when Kubernetes is unreachable, never `healthy`. |
 | `GET /api/scan[?includeSystem=1]` | bearer | Full report. Returns 503 `K8sUnavailable` when there is no cluster. |
 | `GET /api/discovery/cluster` | bearer | Version, node, namespace, pod and NetworkPolicy counts |

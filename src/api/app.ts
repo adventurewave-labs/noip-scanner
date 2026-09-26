@@ -10,6 +10,7 @@ import type { LLMProvider } from '../llm/provider.js';
 import { log } from '../logger.js';
 import { renderMarkdown } from '../report/markdown.js';
 import { scannerInfo } from '../report/provenance.js';
+import { openApiDocument } from './openapi.js';
 import { buildReport, getSnapshot, type ScanOptions } from '../scan.js';
 import { loadIgnoreFile } from '../suppressions.js';
 import type { ClusterSnapshot, DataSource } from '../types.js';
@@ -65,7 +66,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.get('/', (_req, res) => {
-    if (!deps.demo) return void res.json({ name: 'noip', description: 'Read-only Kubernetes posture scanner', health: '/health', api: '/api (bearer token required)' });
+    if (!deps.demo) return void res.json({ name: 'noip', description: 'Read-only Kubernetes posture scanner', health: '/health', openapi: '/openapi.json', api: '/api (bearer token required)' });
     // Public demo page (Railway preview): fixture data only, clearly labelled. No cluster credentials exist in demo mode.
     getSnap({ demo: true })
       .then(({ snapshot, source }) => {
@@ -83,6 +84,10 @@ export function createApp(deps: AppDeps) {
       })
       .catch((err: Error) => res.status(500).json({ error: 'Internal', message: err.message }));
   });
+
+  // Public: describing the API reveals nothing about any cluster.
+  const spec = openApiDocument();
+  app.get('/openapi.json', (_req, res) => void res.json(spec));
 
   app.get('/health', async (_req, res) => {
     const info = scannerInfo();
