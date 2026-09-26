@@ -53,3 +53,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | Fifth independent review | `test/review5-fixes.test.ts` | A regression test for each confirmed defect |
 | KBOM (CycloneDX 1.6) | `src/report/kbom.ts`, `-o cyclonedx`, bundle `kbom.cdx.json` | Official CycloneDX 1.6 schema validation; image-reference parsing and inventory tests (`test/kbom.test.ts`) |
 | Baseline gating | `scan --baseline`, `render --baseline`, action `baseline` input | New-only gate, SARIF baselineState (`test/baseline.test.ts`); action script run locally both ways |
+| Sixth independent review | `test/review6-fixes.test.ts` | A regression test for each confirmed defect |

@@ -152,7 +152,7 @@ describe('exposure (Services)', () => {
     const s = snap({ pods: [exposed, done], services: [svc('web', 'LoadBalancer', { app: 'web' })], clusterRoleBindings: [crb('x', [{ kind: 'ServiceAccount', name: 'default', namespace: 'app' }])] });
     const chains = riskChains(s, [], new Set());
     expect(chains.map((c) => c.id)).toEqual(['CHAIN-SA-CLUSTER-ADMIN:app/default:x']);
-    expect(chains[0]!.steps.at(-1)).toMatch(/Pod\/app\/web is reachable from outside the cluster \(Service app\/web\)/);
+    expect(chains[0]!.steps.at(-1)).toMatch(/Pod\/app\/web is exposed outside the cluster \(Service app\/web\)/);
     expect(riskChains(s, [], new Set(['app']))).toEqual([]);
   });
 
@@ -183,6 +183,6 @@ describe('defaults for sparse objects', () => {
     expect(ids).toContain('CHAIN-EXPOSED-HOST-ACCESS:default/unknown');
     const exposed = r.riskChains!.find((c) => c.id.startsWith('CHAIN-EXPOSED'))!;
     expect(exposed.steps[1]).toMatch(/^Those workloads/);
-    expect(r.riskChains!.find((c) => c.id.startsWith('CHAIN-SA'))!.steps.at(-1)).toMatch(/are reachable from outside the cluster/);
+    expect(r.riskChains!.find((c) => c.id.startsWith('CHAIN-SA'))!.steps.at(-1)).toMatch(/are exposed outside the cluster/);
   });
 });

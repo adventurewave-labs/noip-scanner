@@ -109,9 +109,16 @@ runs:
           require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `score=${r.summary.score}\nfindings=${r.summary.findings}\n`);
         ' "$IN_REPORT"
         { echo "sarif-file=$IN_SARIF"; echo "report-file=$IN_REPORT"; } >> "$GITHUB_OUTPUT"
-        if [ -n "$IN_FAIL_ON" ] && [ -n "$IN_BASELINE" ]; then
-          # Only what is new since the baseline counts (findings or risk chains); exit 2 fails the step.
-          node "$NOIP_BIN" diff "$IN_BASELINE" "$IN_REPORT" --fail-on "$IN_FAIL_ON" -o md >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+        if [ -n "$IN_BASELINE" ]; then
+          # Drift since the baseline always goes to the summary; with fail-on, only what is new (findings or risk chains) gates.
+          gate=()
+          if [ -n "$IN_FAIL_ON" ]; then gate+=(--fail-on "$IN_FAIL_ON"); fi
+          set +e
+          node "$NOIP_BIN" diff "$IN_BASELINE" "$IN_REPORT" -o md "${gate[@]}" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then echo "::error::new findings or risk chains at or above $IN_FAIL_ON since the baseline (see the job summary)"; fi
+          exit "$rc"
         elif [ -n "$IN_FAIL_ON" ]; then
           # The gate is evaluated from the saved report too.
           node -e '

@@ -111,8 +111,11 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   return EXIT.OK;
 }
 
-/** IDs already known in the baseline: active and suppressed findings alike. */
-const baselineIds = (b: Report) => new Set([...b.findings.map((f) => f.id), ...(b.suppressed ?? []).map((x) => x.finding.id)]);
+/**
+ * IDs active in the baseline. A finding that was suppressed there and is active now (the acceptance expired or
+ * was removed) counts as new, for the gate and for SARIF alike.
+ */
+const baselineIds = (b: Report) => new Set(b.findings.map((f) => f.id));
 
 async function runFleet(flags: ScanFlags, opts: Parameters<typeof buildReport>[2] & { kubeconfig?: string; demo?: boolean; manifests?: string[] }): Promise<number> {
   if (flags.context || opts.demo || opts.manifests?.length) throw new Error('--contexts/--all-contexts cannot be combined with --context, --demo or --manifests');
@@ -197,7 +200,7 @@ export function buildCli(): Command {
     .action((before: string, after: string, flags: { output: 'md' | 'json'; failOn?: Severity }) => {
       const d = diffReports(readReport(before), readReport(after));
       process.stdout.write(flags.output === 'json' ? JSON.stringify(d, null, 2) + '\n' : renderDiffMarkdown(d));
-      warn(`diff: ${d.new.length} new, ${d.resolved.length} resolved, score ${d.scoreDelta >= 0 ? '+' : ''}${d.scoreDelta}`);
+      warn(`diff: ${d.new.length} new, ${d.resolved.length} resolved, ${d.chains.new.length} new risk chain(s), score ${d.scoreDelta >= 0 ? '+' : ''}${d.scoreDelta}`);
       if (flags.failOn && regressed(d, flags.failOn)) process.exitCode = EXIT.FINDINGS_AT_THRESHOLD;
     });
 

@@ -75,7 +75,14 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
   const EXTERNAL = new Set(['LoadBalancer', 'NodePort']);
   const exposure = new Map<string, Set<string>>();
   const serviceType = new Map<string, string>();
-  const exposedBy = new Map<string, string>(); // workload -> first exposing service
+  const exposedBy = new Map<string, string[]>(); // workload -> exposing services
+  const podsByNs = new Map<string, V1Pod[]>(); // group once: exposure stays linear in Services + pods
+  for (const p of snapshot.pods) {
+    if (!running(p)) continue;
+    const ns = p.metadata?.namespace ?? 'default';
+    if (!podsByNs.has(ns)) podsByNs.set(ns, []);
+    podsByNs.get(ns)!.push(p);
+  }
   for (const svc of snapshot.services ?? []) {
     const type = svc.spec?.type ?? 'ClusterIP';
     const selector = svc.spec?.selector ?? {};
@@ -84,13 +91,13 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
     const key = `${ns}/${svc.metadata?.name ?? 'unknown'}`;
     serviceType.set(key, svc.spec?.externalIPs?.length && !EXTERNAL.has(type) ? `${type} with externalIPs` : type);
     const hits = new Set<string>();
-    for (const p of snapshot.pods) {
-      if ((p.metadata?.namespace ?? 'default') !== ns || !running(p)) continue;
+    for (const p of podsByNs.get(ns) ?? []) {
       const labels = p.metadata?.labels ?? {};
       if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
         const w = resourceKey(workloadOf(p));
         hits.add(w);
-        if (!exposedBy.has(w)) exposedBy.set(w, key);
+        if (!exposedBy.has(w)) exposedBy.set(w, []);
+        if (!exposedBy.get(w)!.includes(key)) exposedBy.get(w)!.push(key);
       }
     }
     if (hits.size) exposure.set(key, hits);
@@ -117,7 +124,8 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
             : 'Code execution in any of them (a vulnerable dependency, an exposed debug endpoint) is enough to control the whole cluster.',
           ...(() => {
             const ex = entries.filter((w) => exposedBy.has(w));
-            return ex.length ? [`${ex.join(', ')} ${ex.length === 1 ? 'is' : 'are'} reachable from outside the cluster (Service ${exposedBy.get(ex[0]!)}), so the first step needs no foothold.`] : [];
+            const via = [...new Set(ex.flatMap((w) => exposedBy.get(w)!))].sort();
+            return ex.length ? [`${ex.join(', ')} ${ex.length === 1 ? 'is' : 'are'} exposed outside the cluster (Service${via.length > 1 ? 's' : ''} ${via.join(', ')}), so the first step may need no foothold.`] : [];
           })(),
         ],
         entryPoints: entries,
@@ -168,12 +176,13 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
       severity: severe ? 'critical' : 'high',
       title: `${serviceType.get(svc)} Service ${svc} exposes workloads that share host namespaces or privileges`,
       steps: [
-        `Service ${svc} (type ${serviceType.get(svc)}) is reachable from outside the cluster and selects ${risky.join(', ')}.`,
+        `Service ${svc} (type ${serviceType.get(svc)}) is exposed outside the cluster and selects ${risky.join(', ')}.`,
         `${risky.length === 1 ? 'That workload' : 'Those workloads'} ${severe ? 'can reach host processes or devices' : "share the node's network namespace"} (${checks.join(', ')}), so a remote exploit of the exposed port lands with host-level reach.`,
       ],
       entryPoints: risky,
       findingIds: [...new Set(found.map((f) => f.id))].sort(),
-      caveat: 'Exposure is judged from Service type (LoadBalancer, NodePort) or externalIPs and label selectors; Ingress, Gateway and NetworkPolicy reachability are not evaluated.',
+      caveat:
+        'Exposure is judged from Service type (LoadBalancer, NodePort) or externalIPs and label selectors. Internal load-balancer annotations, loadBalancerSourceRanges, Ingress, Gateway and NetworkPolicy are not evaluated, so an internal-only load balancer is still listed.',
     });
   }
   const rank: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };

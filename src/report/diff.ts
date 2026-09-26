@@ -51,6 +51,9 @@ export function diffReports(a: Report, b: Report): ReportDiff {
     warnings.push(`different targets: ${a.provenance.cluster.context ?? 'n/a'} vs ${b.provenance.cluster.context ?? 'n/a'}`);
   }
   if (a.provenance.excludedNamespaces.join() !== b.provenance.excludedNamespaces.join()) warnings.push('excluded namespaces differ between the two scans');
+  if ((a.provenance.minSeverity ?? 'low') !== (b.provenance.minSeverity ?? 'low')) {
+    warnings.push(`severity filter differs (${a.provenance.minSeverity ?? 'none'} vs ${b.provenance.minSeverity ?? 'none'}): findings below the earlier filter show as new`);
+  }
 
   return {
     from: { scannedAt: a.provenance.scannedAt, source: a.source, score: a.summary.score, gitSha: a.provenance.scanner.gitSha },
