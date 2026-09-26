@@ -7,6 +7,7 @@ import { fetchSnapshot } from './k8s/snapshot.js';
 import { parseVersion, versionSupport } from './k8s/support.js';
 import { podSecurityReadiness, PSA_LATEST_MINOR } from './psa.js';
 import { riskChains } from './chains.js';
+import { imageInventory } from './report/kbom.js';
 import { workloadOf } from './checks/workload.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
@@ -111,6 +112,7 @@ export function buildReport(
   const chains = riskChains(snapshot, [...byId.values()], ctx.excludedNamespaces)
     .filter((c) => sevRank(c.severity) <= floor)
     .map((c) => ({ ...c, findingIds: c.findingIds.filter((id) => inReport.has(id)) }));
+  const images = imageInventory(snapshot.pods, ctx.excludedNamespaces);
   const info = scannerInfo();
   const support = versionSupport(snapshot.serverVersion.gitVersion, opts.now);
 
@@ -144,6 +146,7 @@ export function buildReport(
     mappingDisclaimer: MAPPING_DISCLAIMER,
     ...(podSecurity.namespaces.length ? { podSecurity } : {}),
     ...(chains.length ? { riskChains: chains } : {}),
+    ...(images.length ? { inventory: { images } } : {}),
     ...(sup ? { suppressed: sup.suppressed } : {}),
     ...(sup?.warnings.length ? { warnings: sup.warnings } : {}),
   };

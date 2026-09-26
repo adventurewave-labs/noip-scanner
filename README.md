@@ -131,9 +131,9 @@ noip verify-bundle evidence/2026-09-acme          # or: (cd evidence/2026-09-acm
 
 The bundle directory holds:
 
-- `report.json`, `report.md`, `report.html`, `report.sarif` and `report.oscal.json`
+- `report.json`, `report.md`, `report.html`, `report.sarif`, `report.oscal.json` and `kbom.cdx.json`
 - `SHA256SUMS`
-- `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the five reports and whose predicate is the scan's provenance
+- `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the six reports and whose predicate is the scan's provenance
 
 `verify-bundle` does five things: it recomputes every hash, rejects extra files, symlinks and path tricks, requires every listed file to be an in-toto subject, checks that the in-toto subjects match the sums, and cross-checks `report.json` against the statement. On failure it exits `4`.
 
@@ -292,6 +292,15 @@ repos:
 - Tests validate the output against the official OSCAL schema, vendored in `schemas/vendor/`.
 
 Limits: the control IDs are CIS Kubernetes Benchmark IDs as NOIP maps them (the same caveat as the report's mapping disclaimer), not controls from an imported OSCAL catalog. There is no assessment plan or SSP; `import-ap` points to a back-matter entry that says so. It's machine-readable evidence, not an authorization package.
+
+## KBOM (CycloneDX)
+
+`-o cyclonedx` (on `scan`, `render` and fleet runs) emits a Kubernetes bill of materials as [CycloneDX](https://cyclonedx.org/) 1.6 JSON. Evidence bundles include it as `kbom.cdx.json`. Reports carry the same data as `inventory.images`.
+
+- **Structure.** The cluster is the `platform` component, with its Kubernetes version and upstream support status. Every distinct container image in scope is a `container` component, counting init and ephemeral containers. Each image lists how many workloads run it (replicas collapse) and in which namespaces.
+- **Pinned images.** Images pinned by `sha256` digest also get a `pkg:oci` package URL and a SHA-256 hash. Tag-only images get neither, because a tag doesn't identify content, and they're marked `noip:pinnedByDigest=false`.
+- **Limits.** References come from pod specs as written; tags are not resolved to digests, and images aren't pulled or scanned for vulnerabilities. Feed the BOM to a vulnerability tool for that.
+- **Validation.** Tests check the output against the official CycloneDX 1.6 schema, vendored in `schemas/vendor/`.
 
 ## LLM explanation (optional)
 

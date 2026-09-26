@@ -12,7 +12,7 @@ src/k8s/client.ts        single KubeConfig factory
 src/k8s/snapshot.ts      fetch every list once → ClusterSnapshot; any failure → K8sUnavailable
 src/checks/              pure checks (snapshot → findings); registry in index.ts; CIS catalog in controls.ts
 src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo), scan
-src/report/              renderers (markdown, html, sarif, oscal), bundle (evidence + verify; optional DSSE signing in dsse.ts), diff, history, import-sarif, netinspect, provenance
+src/report/              renderers (markdown, html, sarif, oscal, kbom = CycloneDX), bundle (evidence + verify; optional DSSE signing in dsse.ts), diff, history, import-sarif, netinspect, provenance
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
 src/api/                 app.ts (routes, bearer auth), server.ts (entry), metrics.ts (Prometheus exposition)
 src/cli.ts               `noip scan | render | diff | history | policy | fix | verify-bundle | mcp`

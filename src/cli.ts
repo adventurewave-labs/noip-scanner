@@ -11,6 +11,7 @@ import { renderHtml } from './report/html.js';
 import { LANGS, type Lang } from './report/i18n.js';
 import { importSarif } from './report/import-sarif.js';
 import { renderMarkdown } from './report/markdown.js';
+import { renderKbom } from './report/kbom.js';
 import { renderOscal } from './report/oscal.js';
 import { renderSarif } from './report/sarif.js';
 import { ingestNetinspect } from './report/netinspect.js';
@@ -24,7 +25,7 @@ export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE
 interface ScanFlags {
   kubeconfig?: string;
   context?: string;
-  output: 'json' | 'md' | 'sarif' | 'html' | 'oscal';
+  output: 'json' | 'md' | 'sarif' | 'html' | 'oscal' | 'cyclonedx';
   out?: string;
   explain?: boolean;
   netinspect?: string;
@@ -87,7 +88,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
       ? renderMarkdown(report, flags.lang)
       : flags.output === 'html'
         ? renderHtml(report, flags.lang)
-        : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : flags.output === 'oscal' ? renderOscal(report) : report, null, 2) + '\n';
+        : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : flags.output === 'oscal' ? renderOscal(report) : flags.output === 'cyclonedx' ? renderKbom(report) : report, null, 2) + '\n';
   if (flags.out) writeFileSync(flags.out, body);
   else process.stdout.write(body);
 
@@ -135,7 +136,7 @@ export function buildCli(): Command {
     .option('--contexts <names...>', 'scan several contexts (one report each + fleet summary; needs --out-dir)')
     .option('--all-contexts', 'scan every context in the kubeconfig (needs --out-dir)')
     .option('--out-dir <dir>', 'output directory for multi-context scans')
-    .addOption(new Option('-o, --output <format>', 'report format (oscal = OSCAL 1.2.3 assessment results)').choices(['json', 'md', 'sarif', 'html', 'oscal']).default('json'))
+    .addOption(new Option('-o, --output <format>', 'report format (oscal = OSCAL 1.2.3 assessment results; cyclonedx = KBOM, CycloneDX 1.6)').choices(['json', 'md', 'sarif', 'html', 'oscal', 'cyclonedx']).default('json'))
     .option('--out <file>', 'write the report to a file instead of stdout')
     .addOption(new Option('--lang <lang>', 'language for md/html reports (JSON and SARIF stay English)').choices([...LANGS]).default('en'))
     .option('--explain', 'add an LLM explanation (redacted input, schema-validated output; needs an API key)')
@@ -158,12 +159,13 @@ export function buildCli(): Command {
     .command('render')
     .description('Render a saved JSON report as markdown, HTML or SARIF (no rescan, so every format shows the same snapshot)')
     .argument('<report>', 'report.json written by `noip scan`')
-    .addOption(new Option('-o, --output <format>', 'format').choices(['md', 'html', 'sarif', 'oscal']).default('md'))
+    .addOption(new Option('-o, --output <format>', 'format').choices(['md', 'html', 'sarif', 'oscal', 'cyclonedx']).default('md'))
     .addOption(new Option('--lang <lang>', 'language for md/html').choices([...LANGS]).default('en'))
     .option('--out <file>', 'write to a file instead of stdout')
-    .action((file: string, flags: { output: 'md' | 'html' | 'sarif' | 'oscal'; lang: Lang; out?: string }) => {
+    .action((file: string, flags: { output: 'md' | 'html' | 'sarif' | 'oscal' | 'cyclonedx'; lang: Lang; out?: string }) => {
       const r = readReport(file);
-      const body = flags.output === 'sarif' || flags.output === 'oscal' ? JSON.stringify(flags.output === 'sarif' ? renderSarif(r) : renderOscal(r), null, 2) + '\n' : flags.output === 'html' ? renderHtml(r, flags.lang) : renderMarkdown(r, flags.lang);
+      const json = { sarif: renderSarif, oscal: renderOscal, cyclonedx: renderKbom } as const;
+      const body = flags.output in json ? JSON.stringify(json[flags.output as keyof typeof json](r), null, 2) + '\n' : flags.output === 'html' ? renderHtml(r, flags.lang) : renderMarkdown(r, flags.lang);
       if (flags.out) writeFileSync(flags.out, body);
       else process.stdout.write(body);
     });

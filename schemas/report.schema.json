@@ -865,6 +865,43 @@
         }
       }
     },
+    "inventory": {
+      "description": "Container images in scope, from pod specs as written (tags are not resolved).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "images"
+      ],
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "image",
+              "workloads",
+              "namespaces"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "workloads": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "namespaces": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "warnings": {
       "type": "array",
       "items": {

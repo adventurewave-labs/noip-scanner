@@ -124,6 +124,8 @@ export interface Report {
   podSecurity?: import('./psa.js').PodSecurityReadiness;
   /** Findings that compound into an attack path (e.g. a running workload carrying a cluster-admin token). Not scored. */
   riskChains?: import('./chains.js').RiskChain[];
+  /** Container images in scope (from pod specs as written), for the KBOM export. */
+  inventory?: { images: import('./report/kbom.js').ImageUse[] };
   /** Non-fatal notices, e.g. expired or stale suppressions. */
   warnings?: string[];
 }

@@ -51,3 +51,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | Fourth independent review | `test/review4-fixes.test.ts`, `test/metrics.test.ts` | A regression test for each confirmed defect |
 | Risk chains | `src/chains.ts`, report `riskChains` | Demo paths, SA groups, replicas, automount, namespace scoping, escaping (`test/chains.test.ts`) |
 | Fifth independent review | `test/review5-fixes.test.ts` | A regression test for each confirmed defect |
+| KBOM (CycloneDX 1.6) | `src/report/kbom.ts`, `-o cyclonedx`, bundle `kbom.cdx.json` | Official CycloneDX 1.6 schema validation; image-reference parsing and inventory tests (`test/kbom.test.ts`) |

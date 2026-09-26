@@ -6,6 +6,7 @@ import { renderHtml } from './html.js';
 import type { Lang } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 import { DSSE_FILE, INTOTO_PAYLOAD_TYPE, signEnvelope, verifyEnvelope, type Envelope } from './dsse.js';
+import { renderKbom } from './kbom.js';
 import { renderOscal } from './oscal.js';
 import { renderSarif } from './sarif.js';
 
@@ -27,6 +28,7 @@ export function bundleFiles(r: Report, lang: Lang = 'en'): Record<string, string
     'report.html': renderHtml(r, lang),
     'report.sarif': JSON.stringify(renderSarif(r), null, 2) + '\n',
     'report.oscal.json': JSON.stringify(renderOscal(r), null, 2) + '\n',
+    'kbom.cdx.json': JSON.stringify(renderKbom(r), null, 2) + '\n',
   };
 }
 

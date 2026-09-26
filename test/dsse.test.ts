@@ -56,7 +56,7 @@ describe('signed evidence bundles', () => {
     const env = JSON.parse(readFileSync(join(d, DSSE_FILE), 'utf8')) as Envelope;
     expect(Buffer.from(env.payload, 'base64').equals(readFileSync(join(d, STATEMENT_FILE)))).toBe(true);
     expect(verifyBundle(d)).toMatchObject({ ok: true, signature: 'unverified' });
-    expect(verifyBundle(d, { publicKeyPem: pub })).toMatchObject({ ok: true, signature: 'verified', files: 7 });
+    expect(verifyBundle(d, { publicKeyPem: pub })).toMatchObject({ ok: true, signature: 'verified', files: 8 });
     expect(verifyBundle(d, { publicKeyPem: pem('ec').pub })).toMatchObject({ ok: false, problems: ['signature: no signature verifies with the given public key'] });
   });
 
