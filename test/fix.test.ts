@@ -23,7 +23,9 @@ describe('remediation patches', () => {
     ]);
     // init container index + no securityContext at all -> add the whole object
     expect(fix('NOIP-POD-006:Deployment/payments/api/migrate')!.patch[0]!.path).toBe('/spec/template/spec/initContainers/0/securityContext/runAsNonRoot');
-    expect(fix('NOIP-NS-001:Namespace/ci')!.patch).toEqual([{ op: 'add', path: '/metadata/labels/pod-security.kubernetes.io~1enforce', value: 'restricted' }]);
+    // namespace without labels: create the map (RFC 6902 add needs the parent); with labels: add the key
+    expect(fix('NOIP-NS-001:Namespace/ci')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'restricted' } }]);
+    expect(fix('NOIP-NS-001:Namespace/monitoring')!.patch).toEqual([{ op: 'add', path: '/metadata/labels/pod-security.kubernetes.io~1enforce', value: 'restricted' }]);
     // advisory only
     expect(fix('NOIP-NET-001:Namespace/ci')).toBeUndefined();
     expect(fix('NOIP-POD-008:Deployment/shop/frontend/frontend')).toBeUndefined();
@@ -36,7 +38,10 @@ describe('remediation patches', () => {
     });
     const r = buildReport(snap({ namespaces: ns('app'), networkPolicies: covered, pods: [pod] }), 'live');
     const byCheck = Object.fromEntries(r.findings.map((f) => [`${f.checkId}/${f.resource.container}`, f.fix]));
-    expect(byCheck['NOIP-POD-005/c']!.patch).toEqual([{ op: 'add', path: '/spec/containers/0/securityContext', value: { allowPrivilegeEscalation: false } }]);
+    // POD-005 and POD-007 both create securityContext: each op carries the union so neither clobbers the other
+    const union = { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true };
+    expect(byCheck['NOIP-POD-005/c']!.patch).toEqual([{ op: 'add', path: '/spec/containers/0/securityContext', value: union }]);
+    expect(byCheck['NOIP-POD-007/c']!.patch).toEqual([{ op: 'add', path: '/spec/containers/0/securityContext', value: union }]);
     expect(byCheck['NOIP-POD-001/dbg']).toBeUndefined();
   });
 });

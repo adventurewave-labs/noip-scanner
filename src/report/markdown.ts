@@ -1,7 +1,20 @@
 import { resourceKey } from '../scan.js';
 import type { Report } from '../types.js';
 
-const esc = (s: string) => s.replace(/\|/g, '\\|');
+/**
+ * Neutralise untrusted text (imported SARIF, manifest names) for Markdown: one line, no raw HTML,
+ * no link syntax, no table breaks. Renders visually identical to the source text.
+ */
+export const mdSafe = (s: string) =>
+  s.replace(/\s+/g, ' ').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\]\(/g, ']\\(').replace(/\|/g, '\\|');
+const esc = mdSafe;
+/** Inline code that can't be broken out of: fence longer than any backtick run inside. */
+const code = (s: string) => {
+  const t = s.replace(/\s+/g, ' ');
+  const run = Math.max(0, ...(t.match(/`+/g) ?? []).map((m) => m.length));
+  const fence = '`'.repeat(run + 1);
+  return run ? `${fence} ${t} ${fence}` : `${fence}${t}${fence}`;
+};
 
 /** Human-readable report. Every finding's `Evidence:` line is byte-identical to the JSON `evidence` field. */
 export function renderMarkdown(r: Report): string {
@@ -33,9 +46,9 @@ export function renderMarkdown(r: Report): string {
   );
 
   if (r.explanation) {
-    out.push('## Explanation (LLM-generated, advisory)', '', r.explanation.summary, '');
-    for (const pr of r.explanation.priorities) out.push(`- **${pr.findingId}** — ${pr.why} _Fix:_ ${pr.fix}`);
-    if (r.explanation.caveats.length) out.push('', ...r.explanation.caveats.map((c) => `> ${c}`));
+    out.push('## Explanation (LLM-generated, advisory)', '', esc(r.explanation.summary), '');
+    for (const pr of r.explanation.priorities) out.push(`- **${esc(pr.findingId)}** — ${esc(pr.why)} _Fix:_ ${esc(pr.fix)}`);
+    if (r.explanation.caveats.length) out.push('', ...r.explanation.caveats.map((c) => `> ${esc(c)}`));
     out.push('');
   } else if (r.explanation === null) {
     out.push('_LLM explanation requested but unavailable or rejected by schema validation; deterministic findings below are unaffected._', '');
@@ -47,22 +60,22 @@ export function renderMarkdown(r: Report): string {
     out.push(
       `### [${f.severity.toUpperCase()}] ${f.checkId} — ${f.title}`,
       '',
-      `- Resource: \`${resourceKey(f.resource)}\`${f.resource.source ? ` (${f.resource.source.file}${f.resource.source.line ? `:${f.resource.source.line}` : ''})` : ''}`,
-      `- Evidence: ${f.evidence}`,
+      `- Resource: ${code(resourceKey(f.resource))}${f.resource.source ? ` (${esc(f.resource.source.file)}${f.resource.source.line ? `:${f.resource.source.line}` : ''})` : ''}`,
+      `- Evidence: ${esc(f.evidence)}`,
       `- Remediation: ${f.remediation}`,
       `- Controls: ${f.controls.length ? f.controls.join(', ') : '—'}`,
       ...(f.references ? [`- References: NSA/CISA ${f.references.nsaCisa.join('; ') || '—'} · NIST SP 800-190 ${f.references.nist800190.join('; ') || '—'}`] : []),
-      `- Finding ID: \`${f.id}\``,
+      `- Finding ID: ${code(f.id)}`,
       '',
     );
   }
 
   if (r.suppressed?.length) {
     out.push('## Suppressed (accepted risk)', '', '| Finding | Reason | Owner | Expires |', '|---|---|---|---|');
-    for (const x of r.suppressed) out.push(`| \`${x.finding.id}\` | ${esc(x.suppression.reason)} | ${esc(x.suppression.owner)} | ${x.suppression.expires} |`);
+    for (const x of r.suppressed) out.push(`| ${code(x.finding.id)} | ${esc(x.suppression.reason)} | ${esc(x.suppression.owner)} | ${x.suppression.expires} |`);
     out.push('');
   }
-  if (r.warnings?.length) out.push('## Warnings', '', ...r.warnings.map((w) => `- ${w}`), '');
+  if (r.warnings?.length) out.push('## Warnings', '', ...r.warnings.map((w) => `- ${esc(w)}`), '');
 
   out.push('## Controls', '', '| Control | Title | Status | Findings | SOC 2 (ref) | HIPAA (ref) |', '|---|---|---|---|---|---|');
   for (const c of r.controls) {
@@ -73,11 +86,11 @@ export function renderMarkdown(r: Report): string {
   out.push('', `_${r.mappingDisclaimer}_`, '');
 
   for (const run of r.imported ?? []) {
-    out.push(`## Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', `From \`${run.inputFile}\` (sha256 \`${run.inputSha256.slice(0, 12)}…\`). Not included in NOIP's score or control status.`, '');
+    out.push(`## Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', `From ${code(run.inputFile)} (sha256 \`${run.inputSha256.slice(0, 12)}…\`). Not included in NOIP's score or control status.`, '');
     if (!run.results.length) out.push('No results.', '');
     else {
       out.push('| Severity | Rule | Location | Message |', '|---|---|---|---|');
-      for (const x of run.results) out.push(`| ${x.severity} | ${esc(x.ruleId)} | ${x.location ? esc(`${x.location.uri}${x.location.line ? `:${x.location.line}` : ''}`) : '—'} | ${esc(x.message.replace(/\s+/g, ' '))} |`);
+      for (const x of run.results) out.push(`| ${x.severity} | ${esc(x.ruleId)} | ${x.location ? esc(`${x.location.uri}${x.location.line ? `:${x.location.line}` : ''}`) : '—'} | ${esc(x.message)} |`);
       out.push('');
     }
   }

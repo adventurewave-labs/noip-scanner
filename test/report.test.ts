@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import addFormatsPlugin from 'ajv-formats';
 import { describe, expect, it } from 'vitest';
-import { renderMarkdown } from '../src/report/markdown.js';
+import { mdSafe, renderMarkdown } from '../src/report/markdown.js';
 import { ingestNetinspect } from '../src/report/netinspect.js';
 import { buildReport, loadDemoSnapshot } from '../src/scan.js';
 import { snap } from './helpers.js';
@@ -61,7 +61,8 @@ describe('markdown (R-7)', () => {
     const r = demo();
     const md = renderMarkdown(r);
     const lines = md.split('\n').filter((l) => l.startsWith('- Evidence: ')).map((l) => l.slice('- Evidence: '.length));
-    expect(lines).toEqual(r.findings.map((f) => f.evidence));
+    // Evidence is escaped for Markdown (e.g. `<-` -> `&lt;-`) but renders identically to the JSON text.
+    expect(lines).toEqual(r.findings.map((f) => mdSafe(f.evidence)));
   });
 
   it('labels demo data and renders optional sections', () => {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Report } from '../types.js';
 import { renderHtml } from './html.js';
@@ -92,6 +92,11 @@ export function verifyBundle(dir: string): BundleVerification {
       continue;
     }
     try {
+      // Never follow a symlink out of the bundle: only regular files count as evidence.
+      if (!lstatSync(join(dir, e.name)).isFile()) {
+        problems.push(`not a regular file (symlink or directory): ${e.name}`);
+        continue;
+      }
       if (sha256(readFileSync(join(dir, e.name))) !== e.sha) problems.push(`hash mismatch: ${e.name}`);
     } catch {
       problems.push(`missing file: ${e.name}`);
@@ -106,6 +111,9 @@ export function verifyBundle(dir: string): BundleVerification {
       const listed = entries.find((e) => e.name === s.name);
       if (!listed || listed.sha !== s.digest.sha256) problems.push(`in-toto subject does not match ${SUMS_FILE}: ${s.name}`);
     }
+    // The statement is what gets signed: everything else in SHA256SUMS must be one of its subjects.
+    const subjects = new Set([...st.subject.map((s) => s.name), STATEMENT_FILE]);
+    for (const e of entries) if (!subjects.has(e.name)) problems.push(`${SUMS_FILE} lists a file that is not an in-toto subject: ${e.name}`);
     const r = JSON.parse(readFileSync(join(dir, 'report.json'), 'utf8')) as Report;
     if (r.provenance.scannedAt !== st.predicate.scannedAt || r.provenance.scanner.gitSha !== st.predicate.scanner.gitSha) {
       problems.push('report.json provenance does not match the in-toto predicate');

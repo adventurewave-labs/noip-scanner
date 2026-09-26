@@ -1,5 +1,5 @@
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { isMap, isSeq, parseAllDocuments, type Document } from 'yaml';
 import { listFiles, loadManifests } from './manifests.js';
 import type { PatchOp } from './remediation.js';
@@ -49,6 +49,11 @@ export async function fixManifests(paths: string[], opts: ScanOptions & { outDir
   if (paths.includes('-')) throw new Error('noip fix needs files, not stdin');
   if (!opts.outDir === !opts.inPlace) throw new Error('choose exactly one of --out-dir <dir> or --in-place');
   const cwd = opts.cwd ?? process.cwd();
+  if (opts.outDir) {
+    const out = resolve(cwd, opts.outDir);
+    const inside = paths.map((p) => resolve(cwd, p)).find((p) => out === p || out.startsWith(p + sep));
+    if (inside) throw new Error(`--out-dir ${opts.outDir} is inside the input ${relative(cwd, inside) || '.'}; choose a directory outside it`);
+  }
   const report = buildReport(await loadManifests(paths.map((p) => resolve(cwd, p))), 'manifests', opts);
 
   const byFile = new Map<string, Finding[]>();
@@ -69,13 +74,14 @@ export async function fixManifests(paths: string[], opts: ScanOptions & { outDir
     const list = Array.isArray(docs) ? docs : [docs];
     for (const f of findings) {
       const key = [f.resource.kind, f.resource.namespace, f.resource.name].filter(Boolean).join('/');
-      for (const doc of list) {
-        const base = locate(doc, key);
-        if (!base) continue;
-        for (const op of f.fix!.patch) apply(doc, base, op);
-        result.applied.push({ findingId: f.id, file, description: f.fix!.description });
-        break;
+      const hit = list.map((doc) => ({ doc, base: locate(doc, key) })).find((x) => x.base);
+      if (!hit) {
+        // e.g. generateName objects: never drop a finding silently.
+        advisory.push(f);
+        continue;
       }
+      for (const op of f.fix!.patch) apply(hit.doc, hit.base!, op);
+      result.applied.push({ findingId: f.id, file, description: f.fix!.description });
     }
     // Mirror the path relative to `cwd`; files outside it keep only their in-tree tail.
     const target = opts.inPlace ? abs : join(resolve(cwd, opts.outDir!), relative(cwd, abs).replace(/^(\.\.[/\\])+/, ''));

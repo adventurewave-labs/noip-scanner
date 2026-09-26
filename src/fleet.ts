@@ -30,7 +30,8 @@ export interface Fleet {
 
 type Format = 'json' | 'md' | 'sarif' | 'html';
 const EXT: Record<Format, string> = { json: 'json', md: 'md', sarif: 'sarif', html: 'html' };
-export const safeName = (ctx: string) => ctx.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '_') || '_';
+/** Report file stem for a context. Prefixed so no context can collide with fleet.json / fleet.md. */
+export const safeName = (ctx: string) => `cluster-${ctx.replace(/[^A-Za-z0-9._-]+/g, '_')}`;
 
 export function allContexts(kubeconfig?: string): string[] {
   return loadKubeConfig({ kubeconfig }).getContexts().map((c) => c.name);
@@ -42,7 +43,8 @@ export async function scanFleet(
   snap: typeof getSnapshot = getSnapshot,
 ): Promise<{ fleet: Fleet; reports: Report[] }> {
   if (!contexts.length) throw new Error('no contexts to scan');
-  if (new Set(contexts.map(safeName)).size !== contexts.length) throw new Error('context names collide after sanitising; scan them separately');
+  // Case-insensitive: macOS and Windows file systems would silently overwrite `Prod` with `prod`.
+  if (new Set(contexts.map((c) => safeName(c).toLowerCase())).size !== contexts.length) throw new Error('context names collide after sanitising; scan them separately');
   mkdirSync(opts.outDir, { recursive: true });
   const fleet: Fleet = { generatedAt: (opts.now ?? new Date()).toISOString(), clusters: [] };
   const reports: Report[] = [];

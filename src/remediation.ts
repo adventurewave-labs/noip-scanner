@@ -48,11 +48,15 @@ function containerSite(pod: V1Pod, prefix: string, name?: string): { c: V1Contai
   return undefined; // ephemeral containers cannot be patched declaratively
 }
 
-export function fixFor(f: Finding, byWorkload: Map<string, V1Pod>): Fix | undefined {
+export function fixFor(f: Finding, byWorkload: Map<string, V1Pod>, nsHasLabels: (name: string) => boolean): Fix | undefined {
   if (f.checkId === 'NOIP-NS-001') {
+    const key = 'pod-security.kubernetes.io/enforce';
     return {
       description: 'Enforce the restricted Pod Security Standard on this namespace (dry-run with the warn label first).',
-      patch: [{ op: 'add', path: `/metadata/labels/${ptr('pod-security.kubernetes.io/enforce')}`, value: 'restricted' }],
+      // RFC 6902 `add` needs the parent to exist: create the labels map when the namespace has none.
+      patch: nsHasLabels(f.resource.name)
+        ? [{ op: 'add', path: `/metadata/labels/${ptr(key)}`, value: 'restricted' }]
+        : [{ op: 'add', path: '/metadata/labels', value: { [key]: 'restricted' } }],
     };
   }
   const loc = locate(f, byWorkload);
@@ -94,8 +98,16 @@ export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot): voi
     const key = resourceKey(workloadOf(p));
     if (!byWorkload.has(key)) byWorkload.set(key, p);
   }
+  const labelled = new Map(snapshot.namespaces.map((n) => [n.metadata?.name, Boolean(n.metadata?.labels)]));
   for (const f of findings) {
-    const fx = fixFor(f, byWorkload);
+    const fx = fixFor(f, byWorkload, (name) => labelled.get(name) ?? false);
     if (fx) f.fix = fx;
   }
+  // Several findings on one container that has no securityContext each `add` the whole object; applied in
+  // sequence the last would overwrite the others. Give every such op the union of all fields, so applying
+  // any subset, in any order, yields every fix.
+  const union = new Map<string, Record<string, unknown>>();
+  const ops = findings.flatMap((f) => f.fix?.patch ?? []).filter((o) => o.op === 'add' && o.path.endsWith('/securityContext') && typeof o.value === 'object');
+  for (const o of ops) union.set(o.path, { ...union.get(o.path), ...(o.value as Record<string, unknown>) });
+  for (const o of ops) o.value = { ...union.get(o.path) };
 }

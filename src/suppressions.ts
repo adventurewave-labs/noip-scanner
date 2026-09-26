@@ -57,11 +57,15 @@ export function globToRegExp(glob: string): RegExp {
 
 const ruleLabel = (s: Suppression) => s.id ?? `${s.check}${s.resource ? ` ${s.resource}` : ''}`;
 
+// Compile each glob once, not once per finding (hot path: suppressions x findings).
+const compiled = new WeakMap<Suppression, RegExp>();
 function matches(s: Suppression, f: Finding): boolean {
   if (s.id) return s.id === f.id;
   if (s.check !== f.checkId) return false;
   if (!s.resource) return true;
-  return globToRegExp(s.resource).test(f.id.slice(f.checkId.length + 1));
+  let re = compiled.get(s);
+  if (!re) compiled.set(s, (re = globToRegExp(s.resource)));
+  return re.test(f.id.slice(f.checkId.length + 1));
 }
 
 export function applySuppressions(findings: Finding[], suppressions: Suppression[], now: Date = new Date()): SuppressionOutcome {

@@ -107,7 +107,7 @@ The bundle directory holds:
 - `SHA256SUMS`
 - `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the four reports and whose predicate is the scan's provenance
 
-`verify-bundle` does four things: it recomputes every hash, rejects extra files and path tricks, checks that the in-toto subjects match the sums, and cross-checks `report.json` against the statement. On failure it exits `4`.
+`verify-bundle` does five things: it recomputes every hash, rejects extra files, symlinks and path tricks, requires every listed file to be an in-toto subject, checks that the in-toto subjects match the sums, and cross-checks `report.json` against the statement. On failure it exits `4`.
 
 The bundle is **unsigned** because NOIP holds no keys. If an engagement needs signatures, sign the statement with your own tooling, for example `cosign attest-blob --predicate provenance.intoto.json …`. NOIP refuses to write into a non-empty directory, so evidence from different scans never gets mixed.
 
