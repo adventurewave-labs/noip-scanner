@@ -71,6 +71,7 @@ export interface Strings {
   check: string;
   controlsFailedTile: string;
   notInScore: string;
+  support: (vs: import('../k8s/support.js').VersionSupport) => string | undefined;
 }
 
 const EN: Strings = {
@@ -135,6 +136,14 @@ const EN: Strings = {
   check: 'Check',
   controlsFailedTile: 'Controls failed',
   notInScore: "not in NOIP's score",
+  support: (v) => {
+    const tail = ` (upstream schedule from kubernetes.io as of ${v.asOf}; managed platforms such as EKS, GKE and AKS publish their own).`;
+    const patch = v.patchBehind ? ` A newer patch, ${v.latestPatch}, exists.` : '';
+    if (v.status === 'end-of-life') return `Kubernetes ${v.minor} is past upstream end of life${v.endOfLife ? ` (${v.endOfLife})` : ''} and no longer receives security fixes${tail}${patch}`;
+    if (v.status === 'ending-soon') return `Kubernetes ${v.minor} reaches upstream end of life on ${v.endOfLife} (${v.daysLeft} days)${tail}${patch}`;
+    if (v.status === 'supported' && v.patchBehind) return `Kubernetes ${v.minor} is supported upstream until ${v.endOfLife}; patch ${v.latestPatch} is available${tail}`;
+    return undefined;
+  },
 };
 
 const SEV_ES: Record<Severity, string> = { critical: 'crítico', high: 'alto', medium: 'medio', low: 'bajo' };
@@ -246,6 +255,14 @@ const ES: Strings = {
   check: 'Revisión',
   controlsFailedTile: 'Controles con fallas',
   notInScore: 'no cuenta en el puntaje de NOIP',
+  support: (v) => {
+    const tail = ` (calendario upstream de kubernetes.io al ${v.asOf}; las plataformas administradas como EKS, GKE y AKS publican el suyo).`;
+    const patch = v.patchBehind ? ` Existe un parche más reciente: ${v.latestPatch}.` : '';
+    if (v.status === 'end-of-life') return `Kubernetes ${v.minor} ya no tiene soporte upstream${v.endOfLife ? ` (fin de vida: ${v.endOfLife})` : ''} y no recibe correcciones de seguridad${tail}${patch}`;
+    if (v.status === 'ending-soon') return `El soporte upstream de Kubernetes ${v.minor} termina el ${v.endOfLife} (${v.daysLeft} días)${tail}${patch}`;
+    if (v.status === 'supported' && v.patchBehind) return `Kubernetes ${v.minor} tiene soporte upstream hasta el ${v.endOfLife}; está disponible el parche ${v.latestPatch}${tail}`;
+    return undefined;
+  },
 };
 
 export const STRINGS: Record<Lang, Strings> = { en: EN, es: ES };

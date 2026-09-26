@@ -5,15 +5,17 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T19:50:59.797Z |
+| Scanned at | 2026-09-26T19:58:47.175Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `a52a2b43c920` |
+| Scanner | noip 0.1.0 @ `320718ce33f4` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
 ## Summary
 
 Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/15 checks failed · 10/10 controls failed
+
+> ⚠️ Kubernetes 1.31 is past upstream end of life (2025-11-11) and no longer receives security fixes (upstream schedule from kubernetes.io as of 2026-09-26; managed platforms such as EKS, GKE and AKS publish their own). A newer patch, 1.31.14, exists.
 
 ## Executive summary
 

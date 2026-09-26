@@ -90,7 +90,14 @@ export interface Report {
   source: DataSource;
   provenance: {
     scanner: { name: 'noip'; version: string; gitSha: string };
-    cluster: { serverVersion: string; platform?: string; context?: string; nodeCount: number };
+    cluster: {
+      serverVersion: string;
+      platform?: string;
+      context?: string;
+      nodeCount: number;
+      /** Upstream support status of the control-plane minor version (a fact; never affects the score). */
+      versionSupport?: import('./k8s/support.js').VersionSupport;
+    };
     scannedAt: string;
     checksRun: string[];
     excludedNamespaces: string[];

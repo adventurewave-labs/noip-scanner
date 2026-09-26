@@ -116,6 +116,7 @@ export function renderHtml(r: Report, lang: Lang = 'en'): string {
 <p class="muted">${esc(p.cluster.context ?? 'n/a')} · Kubernetes ${esc(p.cluster.serverVersion)} · ${esc(t.scannedAt.toLowerCase())} ${esc(p.scannedAt)} · ${esc(t.source.toLowerCase())} <b>${esc(r.source)}</b></p>
 ${banner}
 <div class="tiles">${tiles.map(([k, v, cls]) => `<div class="tile"><span>${esc(k)}</span><b${cls ? ` class="${cls}"` : ''}>${esc(v)}</b></div>`).join('')}</div>
+${p.cluster.versionSupport && t.support(p.cluster.versionSupport) ? `<div class="banner" role="note">${esc(t.support(p.cluster.versionSupport))}</div>` : ''}
 ${execHtml(r, t)}
 ${explanation}
 <h2>${esc(t.findings)}</h2>${findings}

@@ -4,6 +4,7 @@ import { BENCHMARK, CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
 import { REFERENCES } from './checks/references.js';
 import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
+import { versionSupport } from './k8s/support.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
 import { attachFixes } from './remediation.js';
@@ -100,6 +101,7 @@ export function buildReport(
   const score = totalWeight ? Math.round((100 * (totalWeight - failedWeight)) / totalWeight) : 100;
   const bySeverity = Object.fromEntries(SEVERITIES.map((s) => [s, findings.filter((f) => f.severity === s).length])) as Record<Severity, number>;
   const info = scannerInfo();
+  const support = versionSupport(snapshot.serverVersion.gitVersion, opts.now);
 
   return {
     schemaVersion: '1',
@@ -111,6 +113,7 @@ export function buildReport(
         platform: snapshot.serverVersion.platform,
         context: snapshot.context,
         nodeCount: snapshot.nodeCount,
+        ...(support ? { versionSupport: support } : {}),
       },
       scannedAt: (opts.now ?? new Date()).toISOString(),
       checksRun: checks.map((c) => c.id),

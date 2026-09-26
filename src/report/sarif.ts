@@ -71,6 +71,7 @@ export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): L
         properties: {
           source: r.source,
           kubernetesVersion: r.provenance.cluster.serverVersion,
+          ...(r.provenance.cluster.versionSupport ? { kubernetesSupport: r.provenance.cluster.versionSupport } : {}),
           score: r.summary.score,
           mappingDisclaimer: r.mappingDisclaimer,
         },

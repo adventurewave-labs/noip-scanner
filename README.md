@@ -84,6 +84,10 @@ Each pod is attributed to the workload that owns it:
   - 50k pods: scan in about 1 s.
 - **CI budget.** `test/scale.test.ts` runs a 10k-pod budget check on every PR.
 
+## Kubernetes version support
+
+Reports include `provenance.cluster.versionSupport`: whether the control-plane minor version is supported upstream, ending within 90 days, or past end of life, plus whether a newer patch exists. The data is a pinned copy of [kubernetes.io/releases](https://kubernetes.io/releases) taken on 2026-09-26, in `src/k8s/support.ts`; refresh it when upstream releases a new minor version. This is reported as a fact, not a check, so it doesn't change the score or use one of the 15 check slots. The markdown and HTML reports show a banner for it in English and Spanish. EKS, GKE, AKS and other managed platforms publish their own, often longer, support schedules, and the report says so.
+
 ## Report
 
 Reports validate against [`schemas/report.schema.json`](schemas/report.schema.json). Every report carries:

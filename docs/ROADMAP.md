@@ -86,7 +86,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 20 | Stack health: every branch head checked the way CI would; `npm run ci:local` | shipped (`loop/r20-ci-local`) |
 | 21 | Deterministic executive summary / "fix these first": severity, then blast radius, then reach; quick wins vs design decisions | shipped (`loop/r21-exec-summary`) |
 | 22 | Spanish reports (`--lang es`) for markdown, HTML, bundles and fleet runs. English output is byte-identical. The fuzzer also found a redaction gap here: tokens ending in `-`/`_`. Now fixed. | shipped (`loop/r22-i18n-es`) |
-| 23 | Kubernetes version support facts | planned |
+| 23 | Kubernetes version support facts from the kubernetes.io/releases table (as of 2026-09-26): end of life, ending soon, newer patch available; not a check | shipped (`loop/r23-version-support`) |
 | 24 | Posture history and trend (`noip history`) | planned |
 | 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | planned |
 | 26 | Distribution: composite GitHub Action and pre-commit hook | planned |

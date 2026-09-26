@@ -5,15 +5,17 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T19:50:58.827Z |
+| Fecha del análisis | 2026-09-26T19:58:48.064Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `a52a2b43c920` |
+| Escáner | noip 0.1.0 @ `320718ce33f4` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
 ## Resumen
 
 Puntaje **12/100** · 25 hallazgo(s) · 2 crítico, 9 alto, 12 medio, 2 bajo · 14/15 revisiones con fallas · 10/10 controles con fallas
+
+> ⚠️ Kubernetes 1.31 ya no tiene soporte upstream (fin de vida: 2025-11-11) y no recibe correcciones de seguridad (calendario upstream de kubernetes.io al 2026-09-26; las plataformas administradas como EKS, GKE y AKS publican el suyo). Existe un parche más reciente: 1.31.14.
 
 ## Resumen ejecutivo
 

@@ -51,6 +51,9 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
     '',
   );
 
+  const vs = p.cluster.versionSupport && t.support(p.cluster.versionSupport);
+  if (vs) out.push(`> ${p.cluster.versionSupport!.status === 'supported' ? 'ℹ️' : '⚠️'} ${vs}`, '');
+
   const ex = executiveSummary(r);
   const headline = r.findings.length
     ? t.headline(r.summary.score, r.findings.length, r.summary.bySeverity.critical, r.summary.bySeverity.high, ex.failedChecks, p.checksRun.length, ex.quickWins)

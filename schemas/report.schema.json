@@ -79,6 +79,50 @@
             "nodeCount": {
               "type": "integer",
               "minimum": 0
+            },
+            "versionSupport": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "minor",
+                "status",
+                "patchBehind",
+                "asOf",
+                "source"
+              ],
+              "properties": {
+                "minor": {
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "supported",
+                    "ending-soon",
+                    "end-of-life",
+                    "unknown"
+                  ]
+                },
+                "endOfLife": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "daysLeft": {
+                  "type": "integer"
+                },
+                "latestPatch": {
+                  "type": "string"
+                },
+                "patchBehind": {
+                  "type": "boolean"
+                },
+                "asOf": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "source": {
+                  "type": "string"
+                }
+              }
             }
           }
         },
