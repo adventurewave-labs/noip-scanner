@@ -34,6 +34,10 @@ inputs:
     description: Language of the job summary (en or es).
     required: false
     default: en
+  baseline:
+    description: Path to an earlier NOIP JSON report. When set, fail-on gates only on NEW findings or risk chains, and SARIF results carry baselineState.
+    required: false
+    default: ''
 
 outputs:
   score:
@@ -80,6 +84,7 @@ runs:
         IN_SARIF: ${{ inputs.sarif-file }}
         IN_REPORT: ${{ inputs.report-file }}
         IN_LANG: ${{ inputs.lang }}
+        IN_BASELINE: ${{ inputs.baseline }}
       run: |
         set -euo pipefail
         args=()
@@ -95,14 +100,19 @@ runs:
         if [ -n "$IN_MIN_SEVERITY" ]; then args+=(--min-severity "$IN_MIN_SEVERITY"); fi
         # Scan once; every other format is rendered from that report, so all outputs describe the same snapshot.
         node "$NOIP_BIN" scan "${args[@]}" -o json --out "$IN_REPORT"
-        node "$NOIP_BIN" render "$IN_REPORT" -o sarif --out "$IN_SARIF"
+        sarif_args=()
+        if [ -n "$IN_BASELINE" ]; then sarif_args+=(--baseline "$IN_BASELINE"); fi
+        node "$NOIP_BIN" render "$IN_REPORT" -o sarif --out "$IN_SARIF" "${sarif_args[@]}"
         if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then node "$NOIP_BIN" render "$IN_REPORT" -o md --lang "$IN_LANG" >> "$GITHUB_STEP_SUMMARY"; fi
         node -e '
           const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
           require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `score=${r.summary.score}\nfindings=${r.summary.findings}\n`);
         ' "$IN_REPORT"
         { echo "sarif-file=$IN_SARIF"; echo "report-file=$IN_REPORT"; } >> "$GITHUB_OUTPUT"
-        if [ -n "$IN_FAIL_ON" ]; then
+        if [ -n "$IN_FAIL_ON" ] && [ -n "$IN_BASELINE" ]; then
+          # Only what is new since the baseline counts (findings or risk chains); exit 2 fails the step.
+          node "$NOIP_BIN" diff "$IN_BASELINE" "$IN_REPORT" --fail-on "$IN_FAIL_ON" -o md >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+        elif [ -n "$IN_FAIL_ON" ]; then
           # The gate is evaluated from the saved report too.
           node -e '
             const sev = ["critical", "high", "medium", "low"];

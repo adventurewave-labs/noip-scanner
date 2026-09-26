@@ -48,7 +48,11 @@ function location(f: Finding): Result['locations'] {
 }
 
 /** SARIF 2.1.0 — consumable by GitHub code scanning, Azure DevOps, VS Code SARIF Viewer, DefectDojo, etc. */
-export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): Log {
+/**
+ * With `baseline` (finding IDs from an earlier report), every result carries SARIF `baselineState`:
+ * `new` or `unchanged`, so consumers can show only what this change introduced.
+ */
+export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS, baseline?: ReadonlySet<string>): Log {
   const ran = new Set(r.provenance.checksRun);
   const rules = checks.filter((c) => ran.has(c.id)).map(rule);
   const index = new Map(rules.map((ru, i) => [ru.id, i]));
@@ -76,10 +80,10 @@ export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): L
           mappingDisclaimer: r.mappingDisclaimer,
         },
         results: [
-          ...r.findings.map((f) => toResult(f, index, r.source)),
+          ...r.findings.map((f) => toResult(f, index, r.source, baseline)),
           // Suppressed findings stay visible as SARIF suppressions (status accepted) so tools show them as dismissed.
           ...(r.suppressed ?? []).map((x) => ({
-            ...toResult(x.finding, index, r.source),
+            ...toResult(x.finding, index, r.source, baseline),
             suppressions: [{ kind: 'external' as const, status: 'accepted' as const, justification: `${x.suppression.reason} (owner ${x.suppression.owner}, expires ${x.suppression.expires})` }],
           })),
         ],
@@ -100,8 +104,9 @@ export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): L
   };
 }
 
-function toResult(f: Finding, index: Map<string, number>, source: string): Result {
+function toResult(f: Finding, index: Map<string, number>, source: string, baseline?: ReadonlySet<string>): Result {
   return {
+    ...(baseline ? { baselineState: baseline.has(f.id) ? ('unchanged' as const) : ('new' as const) } : {}),
     ruleId: f.checkId,
     ruleIndex: index.get(f.checkId),
     level: LEVEL[f.severity],

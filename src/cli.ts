@@ -44,6 +44,7 @@ interface ScanFlags {
   lang?: Lang;
   minSeverity?: Severity;
   failOn?: Severity;
+  baseline?: string;
 }
 
 const warn = (m: string) => process.stderr.write(`noip: ${m}\n`);
@@ -64,6 +65,8 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig, --context, --contexts or --all-contexts`);
   }
   if (flags.signKey && !flags.bundle) throw new Error('--sign-key needs --bundle');
+  const baseline = flags.baseline ? readReport(flags.baseline) : undefined;
+  if (baseline && (flags.contexts?.length || flags.allContexts)) throw new Error('--baseline applies to a single cluster; run it per context');
   if (flags.contexts?.length || flags.allContexts) return runFleet(flags, opts);
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
@@ -88,17 +91,28 @@ export async function runScan(flags: ScanFlags): Promise<number> {
       ? renderMarkdown(report, flags.lang)
       : flags.output === 'html'
         ? renderHtml(report, flags.lang)
-        : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : flags.output === 'oscal' ? renderOscal(report) : flags.output === 'cyclonedx' ? renderKbom(report) : report, null, 2) + '\n';
+        : JSON.stringify(flags.output === 'sarif' ? renderSarif(report, undefined, baseline ? baselineIds(baseline) : undefined) : flags.output === 'oscal' ? renderOscal(report) : flags.output === 'cyclonedx' ? renderKbom(report) : report, null, 2) + '\n';
   if (flags.out) writeFileSync(flags.out, body);
   else process.stdout.write(body);
 
   warn(`${source} scan: ${report.summary.findings} finding(s)${report.summary.suppressed ? ` (+${report.summary.suppressed} suppressed)` : ''}, score ${report.summary.score}/100${flags.out ? ` -> ${flags.out}` : ''}`);
+  if (baseline) {
+    const d = diffReports(baseline, report);
+    for (const w of d.warnings) warn(`baseline: ${w}`);
+    warn(`baseline: ${d.new.length} new finding(s), ${d.resolved.length} resolved, ${d.chains.new.length} new risk chain(s) since ${baseline.provenance.scannedAt}`);
+    // With a baseline, --fail-on gates only on what is new (findings or risk chains), so legacy debt doesn't block a change.
+    if (flags.failOn && regressed(d, flags.failOn)) return EXIT.FINDINGS_AT_THRESHOLD;
+    return EXIT.OK;
+  }
   if (flags.failOn) {
     const limit = SEVERITIES.indexOf(flags.failOn);
     if (report.findings.some((f) => SEVERITIES.indexOf(f.severity) <= limit)) return EXIT.FINDINGS_AT_THRESHOLD;
   }
   return EXIT.OK;
 }
+
+/** IDs already known in the baseline: active and suppressed findings alike. */
+const baselineIds = (b: Report) => new Set([...b.findings.map((f) => f.id), ...(b.suppressed ?? []).map((x) => x.finding.id)]);
 
 async function runFleet(flags: ScanFlags, opts: Parameters<typeof buildReport>[2] & { kubeconfig?: string; demo?: boolean; manifests?: string[] }): Promise<number> {
   if (flags.context || opts.demo || opts.manifests?.length) throw new Error('--contexts/--all-contexts cannot be combined with --context, --demo or --manifests');
@@ -152,6 +166,7 @@ export function buildCli(): Command {
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
     .addOption(new Option('--min-severity <severity>', 'only report findings at or above this severity (recorded in provenance)').choices([...SEVERITIES]))
     .addOption(new Option('--fail-on <severity>', 'exit 2 if any finding is at or above this severity').choices([...SEVERITIES]))
+    .option('--baseline <report.json>', 'compare with an earlier report: --fail-on then gates only on NEW findings or risk chains; SARIF results get baselineState')
     .action(async (paths: string[], flags: ScanFlags) => {
       process.exitCode = await runScan(paths.length ? { ...flags, manifests: [...(flags.manifests ?? []), ...paths] } : flags);
     });
@@ -162,9 +177,11 @@ export function buildCli(): Command {
     .addOption(new Option('-o, --output <format>', 'format').choices(['md', 'html', 'sarif', 'oscal', 'cyclonedx']).default('md'))
     .addOption(new Option('--lang <lang>', 'language for md/html').choices([...LANGS]).default('en'))
     .option('--out <file>', 'write to a file instead of stdout')
-    .action((file: string, flags: { output: 'md' | 'html' | 'sarif' | 'oscal' | 'cyclonedx'; lang: Lang; out?: string }) => {
+    .option('--baseline <report.json>', 'SARIF only: mark each result new or unchanged relative to this earlier report')
+    .action((file: string, flags: { output: 'md' | 'html' | 'sarif' | 'oscal' | 'cyclonedx'; lang: Lang; out?: string; baseline?: string }) => {
       const r = readReport(file);
-      const json = { sarif: renderSarif, oscal: renderOscal, cyclonedx: renderKbom } as const;
+      const known = flags.baseline ? baselineIds(readReport(flags.baseline)) : undefined;
+      const json = { sarif: (x: Report) => renderSarif(x, undefined, known), oscal: renderOscal, cyclonedx: renderKbom } as const;
       const body = flags.output in json ? JSON.stringify(json[flags.output as keyof typeof json](r), null, 2) + '\n' : flags.output === 'html' ? renderHtml(r, flags.lang) : renderMarkdown(r, flags.lang);
       if (flags.out) writeFileSync(flags.out, body);
       else process.stdout.write(body);

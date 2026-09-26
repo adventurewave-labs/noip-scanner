@@ -171,7 +171,9 @@ Findings are matched by their stable ID. The diff reports:
 
 It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
 
-`noip render report.json -o md|html|sarif|oscal [--lang es]` re-renders a saved report without rescanning.
+`noip render report.json -o md|html|sarif|oscal|cyclonedx [--lang es]` re-renders a saved report without rescanning.
+
+**Baseline gating.** `noip scan --baseline last.json --fail-on high` exits 2 only for findings or risk chains that are **new** since `last.json`, so existing debt doesn't block every change while nothing new gets in. SARIF output (from `scan` or `render --baseline`) marks every result with `baselineState` `new` or `unchanged`. The composite action takes a `baseline` input that does the same.
 
 ## Posture history: `noip history`
 
@@ -270,7 +272,7 @@ Findings from live clusters use the pseudo-path `k8s/<Kind>/<namespace>/<name>`;
     sarif_file: ${{ steps.noip.outputs.sarif-file }}
 ```
 
-Outputs: `score`, `findings`, `sarif-file`, `report-file`. The cluster or files are scanned once; SARIF and the job summary are rendered from that JSON with `noip render`, so all outputs describe the same snapshot. `actions/setup-node` runs only if the runner has no Node 22+, so the job's Node version is otherwise left alone. `manifests` may be space- or newline-separated. Inputs reach the script through environment variables only, never by template expansion inside `run`. While this repository is private, other repositories can only use the action if its Actions access settings allow it.
+Outputs: `score`, `findings`, `sarif-file`, `report-file`. With `baseline: path/to/last.json`, `fail-on` gates only on new findings or risk chains, and the drift report goes into the job summary. The cluster or files are scanned once; SARIF and the job summary are rendered from that JSON with `noip render`, so all outputs describe the same snapshot. `actions/setup-node` runs only if the runner has no Node 22+, so the job's Node version is otherwise left alone. `manifests` may be space- or newline-separated. Inputs reach the script through environment variables only, never by template expansion inside `run`. While this repository is private, other repositories can only use the action if its Actions access settings allow it.
 
 **pre-commit.** `.pre-commit-hooks.yaml` defines a `noip` hook for staged `*.yaml`/`*.yml` files. It needs Node 22+ and npm on `PATH`; the first run builds the scanner inside pre-commit's cache (about 15 seconds), and later runs only scan.
 

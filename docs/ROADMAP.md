@@ -105,6 +105,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 39 | `noip diff` covers risk chains, Pod Security readiness and images; `--fail-on` counts new chains; every value from report files escaped (pre-existing gap in the diff renderer) | shipped (`loop/r39-diff-context`) |
 | 40 | LLM explanation gets deterministic context: risk chains and Pod Security readiness (redacted, capped); prompt guards against recommending a PSA level that would break workloads | shipped (`loop/r40-llm-context`) |
 | 41 | Wrap-up: stack health for PRs #21–#41 (all 21 heads green in fresh worktrees), ratchet raised (statements 99, branches 94.5, lines 99), docs | shipped (`loop/r41-wrapup`) |
+| 42 | Baseline gating: `scan --baseline` fails only on new findings or chains; SARIF `baselineState`; action `baseline` input | shipped (`loop/r42-baseline`) |
 
 ## Later
 These are candidates, not commitments:
