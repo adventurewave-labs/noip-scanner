@@ -87,11 +87,13 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 21 | Deterministic executive summary / "fix these first": severity, then blast radius, then reach; quick wins vs design decisions | shipped (`loop/r21-exec-summary`) |
 | 22 | Spanish reports (`--lang es`) for markdown, HTML, bundles and fleet runs. English output is byte-identical. The fuzzer also found a redaction gap here: tokens ending in `-`/`_`. Now fixed. | shipped (`loop/r22-i18n-es`) |
 | 23 | Kubernetes version support facts from the kubernetes.io/releases table (as of 2026-09-26): end of life, ending soon, newer patch available; not a check | shipped (`loop/r23-version-support`) |
-| 24 | Posture history and trend (`noip history`) | shipped |
-| 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | shipped |
-| 26 | Distribution: composite GitHub Action and pre-commit hook | shipped |
-| 27 | Independent review #3, with fixes | shipped |
-| 28 | Wrap-up | planned |
+| 24 | Posture history and trend (`noip history`) | shipped (`loop/r24-history`) |
+| 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | shipped (`loop/r25-policy`) |
+| 26 | Distribution: composite GitHub Action and pre-commit hook | shipped (`loop/r26-distribution`) |
+| 27 | Independent review #3, with fixes (9 confirmed defects, including an XSS in history HTML) | shipped (`loop/r27-review3`) |
+| 28 | Pod Security readiness: which level each namespace could enforce today, via a port of the upstream PSA checks, conformance-tested against upstream fixtures; NS-001 fixes never pick a level that would reject current pods | shipped (`loop/r28-psa-readiness`) |
+| 29 | Compliance export: OSCAL assessment results | planned |
+| 30 | Wrap-up | planned |
 
 ## Later
 These are candidates, not commitments:

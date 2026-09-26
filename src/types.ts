@@ -121,6 +121,8 @@ export interface Report {
   explanation?: Explanation | null;
   /** Accepted-risk findings, each with the suppression that hid it (reason, owner, expiry). */
   suppressed?: Array<{ finding: Finding; suppression: { reason: string; owner: string; expires: string; rule: string } }>;
+  /** Which Pod Security level each namespace could enforce today (a planning aid; never affects the score). */
+  podSecurity?: import('./psa.js').PodSecurityReadiness;
   /** Non-fatal notices, e.g. expired or stale suppressions. */
   warnings?: string[];
 }

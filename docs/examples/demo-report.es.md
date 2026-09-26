@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T20:31:25.619Z |
+| Fecha del análisis | 2026-09-26T20:53:03.635Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `1504153b2f8d` |
+| Escáner | noip 0.1.0 @ `a04db7c850a6` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
@@ -19,7 +19,7 @@ Puntaje **12/100** · 25 hallazgo(s) · 2 crítico, 9 alto, 12 medio, 2 bajo · 
 
 ## Resumen ejecutivo
 
-Puntaje 12/100. 25 hallazgo(s) (2 críticos, 9 altos) en 14 de 15 revisiones; 15 tienen una corrección determinista.
+Puntaje 12/100. 25 hallazgo(s) (2 críticos, 9 altos) en 14 de 15 revisiones; 13 tienen una corrección determinista.
 
 Corregir primero (orden determinista: severidad, luego alcance, luego número de recursos):
 
@@ -29,7 +29,7 @@ Corregir primero (orden determinista: severidad, luego alcance, luego número de
 4. **NOIP-NET-001: Namespace sin NetworkPolicy**: alto, alcance: namespace, 3 recurso(s) (p. ej. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
 5. **NOIP-POD-006: El contenedor podría ejecutarse como root**: alto, alcance: carga de trabajo, 3 recurso(s), 3 con corrección automática (p. ej. `Deployment/payments/api`, `Pod/ci/debug-shell`)
 
-Mejoras rápidas con corrección determinista: **15** · requieren una decisión de diseño: **10**
+Mejoras rápidas con corrección determinista: **13** · requieren una decisión de diseño: **12**
 
 ## Hallazgos
 
@@ -274,3 +274,15 @@ Mejoras rápidas con corrección determinista: **15** · requieren una decisión
 | CIS-5.4.1 | Preferir secretos como archivos en lugar de variables de entorno | ❌ no cumple | 2 | CC6.1, CC6.7 | 164.312(a)(2)(iv), 164.312(e)(2)(ii) |
 
 _Los identificadores de SOC 2, HIPAA, NSA/CISA y NIST SP 800-190 son mapeos de referencia, no una certificación. NOIP revisa un subconjunto de cargas de trabajo del CIS Kubernetes Benchmark nivel 1 y no evalúa controles del plano de control, de nodos ni de procesos._
+
+## Preparación para Pod Security
+
+El estándar de Pod Security más alto que cada namespace podría aplicar hoy sin rechazar ningún pod actual (versión de política 1.31, evaluada con una adaptación de las comprobaciones oficiales de Pod Security Admission). Es una ayuda de planificación; no afecta la puntuación.
+
+| Namespace | Aplicado ahora | Podría aplicar hoy | Pods | Bloquea el siguiente nivel |
+|---|---|---|---|---|
+| ci | sin definir | **privileged** | 1 | **Pod/ci/debug-shell**: hostIPC=true; privileged containers (shell) |
+| default | sin definir | **restricted** | 0 | — |
+| monitoring | privileged | **privileged** | 3 | **DaemonSet/monitoring/node-exporter**: hostNetwork, hostPID=true |
+| payments | sin definir | **baseline** | 1 | **Deployment/payments/api**: pod or containers must set runAsNonRoot=true (migrate, api); pod or containers must set seccompProfile RuntimeDefault or Localhost (migrate, api) |
+| shop | restricted | **restricted** | 3 | — |

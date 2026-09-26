@@ -88,6 +88,15 @@ Each pod is attributed to the workload that owns it:
 
 Reports include `provenance.cluster.versionSupport`: whether the control-plane minor version is supported upstream, ending within 90 days, or past end of life, plus whether a newer patch exists. The data is a pinned copy of [kubernetes.io/releases](https://kubernetes.io/releases) taken on 2026-09-26, in `src/k8s/support.ts`; refresh it when upstream releases a new minor version. This is reported as a fact, not a check, so it doesn't change the score or use one of the 15 check slots. The markdown and HTML reports show a banner for it in English and Spanish. EKS, GKE, AKS and other managed platforms publish their own, often longer, support schedules, and the report says so.
 
+## Pod Security readiness
+
+Reports include a `podSecurity` section: for each namespace, the highest [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/) (`privileged`, `baseline` or `restricted`) it could enforce today without rejecting any of its current pods, plus the workloads that block the next level and why. It answers the question NOIP-NS-001 raises: which label is safe to set?
+
+- **Evaluation.** `src/psa.ts` is a port of the upstream Pod Security Admission checks ([kubernetes/pod-security-admission](https://github.com/kubernetes/pod-security-admission), Apache-2.0). It is version-aware: it uses the cluster's minor version, capped at 1.37, and `latest` rules for manifest scans.
+- **Conformance.** `test/psa.test.ts` runs upstream's own pass/fail fixtures (820 pods, policy versions 1.23 to 1.37, vendored under `test/fixtures/psa/` with their license) and requires the same verdict for every one.
+- **Fixes.** The NS-001 fix labels a namespace with the level its pods already meet. A namespace whose pods don't meet baseline gets no automatic fix; fix the pods first, then run `noip fix` again.
+- **Scoring.** Readiness is a planning aid. It doesn't change the score and doesn't use a check slot.
+
 ## Report
 
 Reports validate against [`schemas/report.schema.json`](schemas/report.schema.json). Every report carries:

@@ -4,7 +4,9 @@ import { BENCHMARK, CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
 import { REFERENCES } from './checks/references.js';
 import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
-import { versionSupport } from './k8s/support.js';
+import { parseVersion, versionSupport } from './k8s/support.js';
+import { podSecurityReadiness, PSA_LATEST_MINOR } from './psa.js';
+import { workloadOf } from './checks/workload.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
 import { attachFixes } from './remediation.js';
@@ -76,7 +78,9 @@ export function buildReport(
   const sevRank = (s: Severity) => SEVERITIES.indexOf(s);
   const floor = opts.minSeverity ? SEVERITIES.indexOf(opts.minSeverity) : SEVERITIES.length;
   const all = [...byId.values()].filter((f) => sevRank(f.severity) <= floor).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
-  attachFixes(all, snapshot);
+  const minor = Number(parseVersion(snapshot.serverVersion.gitVersion)?.minor.split('.')[1] ?? PSA_LATEST_MINOR);
+  const podSecurity = podSecurityReadiness(snapshot.pods, snapshot.namespaces, ctx.excludedNamespaces, (p) => resourceKey(workloadOf(p)), minor);
+  attachFixes(all, snapshot, new Map(podSecurity.namespaces.map((n) => [n.namespace, n.canEnforce])));
   const sup = opts.suppressions ? applySuppressions(all, opts.suppressions, opts.now) : undefined;
   const findings = sup ? sup.active : all;
 
@@ -131,6 +135,7 @@ export function buildReport(
     findings,
     controls,
     mappingDisclaimer: MAPPING_DISCLAIMER,
+    ...(podSecurity.namespaces.length ? { podSecurity } : {}),
     ...(sup ? { suppressed: sup.suppressed } : {}),
     ...(sup?.warnings.length ? { warnings: sup.warnings } : {}),
   };

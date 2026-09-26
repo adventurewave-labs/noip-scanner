@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T20:31:24.218Z |
+| Scanned at | 2026-09-26T20:53:03.635Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `1504153b2f8d` |
+| Scanner | noip 0.1.0 @ `a04db7c850a6` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
@@ -19,7 +19,7 @@ Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/
 
 ## Executive summary
 
-Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 15 have a deterministic fix.
+Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 13 have a deterministic fix.
 
 Fix these first (deterministic ranking: severity, then blast radius, then reach):
 
@@ -29,7 +29,7 @@ Fix these first (deterministic ranking: severity, then blast radius, then reach)
 4. **NOIP-NET-001: Namespace has no NetworkPolicy**: high, namespace-scoped, 3 resource(s) (e.g. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
 5. **NOIP-POD-006: Container may run as root**: high, workload-scoped, 3 resource(s), 3 auto-fixable (e.g. `Deployment/payments/api`, `Pod/ci/debug-shell`)
 
-Quick wins with a deterministic fix: **15** · need a design decision: **10**
+Quick wins with a deterministic fix: **13** · need a design decision: **12**
 
 ## Findings
 
@@ -274,3 +274,15 @@ Quick wins with a deterministic fix: **15** · need a design decision: **10**
 | CIS-5.4.1 | Prefer secrets as files over secrets as environment variables | ❌ fail | 2 | CC6.1, CC6.7 | 164.312(a)(2)(iv), 164.312(e)(2)(ii) |
 
 _SOC 2, HIPAA, NSA/CISA and NIST SP 800-190 identifiers are reference mappings, not an attestation. NOIP checks a workload subset of CIS Kubernetes Benchmark Level 1 and does not assess control-plane, node or process controls._
+
+## Pod Security readiness
+
+The highest Pod Security Standard each namespace could enforce today without rejecting any current pod (policy version 1.31, evaluated with a port of the upstream Pod Security Admission checks). A planning aid; it does not affect the score.
+
+| Namespace | Enforced now | Could enforce today | Pods | Blocking the next level |
+|---|---|---|---|---|
+| ci | not set | **privileged** | 1 | **Pod/ci/debug-shell**: hostIPC=true; privileged containers (shell) |
+| default | not set | **restricted** | 0 | — |
+| monitoring | privileged | **privileged** | 3 | **DaemonSet/monitoring/node-exporter**: hostNetwork, hostPID=true |
+| payments | not set | **baseline** | 1 | **Deployment/payments/api**: pod or containers must set runAsNonRoot=true (migrate, api); pod or containers must set seccompProfile RuntimeDefault or Localhost (migrate, api) |
+| shop | restricted | **restricted** | 3 | — |

@@ -1,6 +1,7 @@
 import type { V1Container, V1Pod } from '@kubernetes/client-node';
 import { workloadOf } from './checks/workload.js';
 import { resourceKey } from './scan.js';
+import type { PsaLevel } from './psa.js';
 import type { ClusterSnapshot, Finding } from './types.js';
 
 /**
@@ -48,15 +49,29 @@ function containerSite(pod: V1Pod, prefix: string, name?: string): { c: V1Contai
   return undefined; // ephemeral containers cannot be patched declaratively
 }
 
-export function fixFor(f: Finding, byWorkload: Map<string, V1Pod>, nsHasLabels: (name: string) => boolean): Fix | undefined {
+export function fixFor(
+  f: Finding,
+  byWorkload: Map<string, V1Pod>,
+  nsHasLabels: (name: string) => boolean,
+  canEnforce: (name: string) => PsaLevel,
+): Fix | undefined {
   if (f.checkId === 'NOIP-NS-001') {
+    // Enforce the highest level today's pods already meet, so the label never rejects a current workload
+    // on its next rollout. A namespace with pods below baseline gets no automatic fix (see the readiness table).
+    const level = canEnforce(f.resource.name);
+    if (level === 'privileged') return undefined;
     const key = 'pod-security.kubernetes.io/enforce';
+    const current = f.evidence.match(/=(\w+)$/)?.[1];
+    if (current === level) return undefined;
     return {
-      description: 'Enforce the restricted Pod Security Standard on this namespace (dry-run with the warn label first).',
+      description:
+        level === 'restricted'
+          ? 'Enforce the restricted Pod Security Standard on this namespace; every current pod already meets it.'
+          : 'Enforce the baseline Pod Security Standard; every current pod meets baseline, but not yet restricted (see the readiness table).',
       // RFC 6902 `add` needs the parent to exist: create the labels map when the namespace has none.
       patch: nsHasLabels(f.resource.name)
-        ? [{ op: 'add', path: `/metadata/labels/${ptr(key)}`, value: 'restricted' }]
-        : [{ op: 'add', path: '/metadata/labels', value: { [key]: 'restricted' } }],
+        ? [{ op: 'add', path: `/metadata/labels/${ptr(key)}`, value: level }]
+        : [{ op: 'add', path: '/metadata/labels', value: { [key]: level } }],
     };
   }
   const loc = locate(f, byWorkload);
@@ -92,7 +107,7 @@ export function fixFor(f: Finding, byWorkload: Map<string, V1Pod>, nsHasLabels: 
 }
 
 /** Attach `fix` to every finding that has a deterministic remediation. */
-export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot): void {
+export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot, canEnforce?: ReadonlyMap<string, PsaLevel>): void {
   const byWorkload = new Map<string, V1Pod>();
   for (const p of snapshot.pods) {
     const key = resourceKey(workloadOf(p));
@@ -100,7 +115,7 @@ export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot): voi
   }
   const labelled = new Map(snapshot.namespaces.map((n) => [n.metadata?.name, Boolean(n.metadata?.labels)]));
   for (const f of findings) {
-    const fx = fixFor(f, byWorkload, (name) => labelled.get(name) ?? false);
+    const fx = fixFor(f, byWorkload, (name) => labelled.get(name) ?? false, (name) => canEnforce?.get(name) ?? 'restricted');
     if (fx) f.fix = fx;
   }
   // Several findings on one container that has no securityContext each `add` the whole object; applied in

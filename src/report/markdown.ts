@@ -119,6 +119,17 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
     }
   }
 
+  if (r.podSecurity?.namespaces.length) {
+    out.push(`## ${t.psa}`, '', t.psaNote(r.podSecurity.policyVersion), '');
+    out.push(`| ${t.psaCols.join(' | ')} |`, '|---|---|---|---|---|');
+    for (const n of r.podSecurity.namespaces) {
+      // Table cells: mdSafe everything (a report rendered with `noip render` is untrusted input).
+      const blockers = n.blockers.map((b) => `**${esc(b.resource)}**: ${esc(b.reasons.join('; '))}`).join('<br>') || '—';
+      out.push(`| ${esc(n.namespace)} | ${n.enforce ? esc(n.enforce) : t.psaUnset} | **${esc(String(n.canEnforce))}** | ${esc(String(n.pods))} | ${blockers} |`);
+    }
+    out.push('');
+  }
+
   if (r.network) {
     const n = r.network;
     out.push(`## ${t.network}`, '', `CNI: ${esc(n.cni ?? t.unknown)} · ${t.networkMeta[0]}: ${esc(n.toolVersion ?? t.unknown)} · ${t.networkMeta[1]}: ${code(n.inputSha256)}`, '');

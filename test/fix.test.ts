@@ -23,9 +23,16 @@ describe('remediation patches', () => {
     ]);
     // init container index + no securityContext at all -> add the whole object
     expect(fix('NOIP-POD-006:Deployment/payments/api/migrate')!.patch[0]!.path).toBe('/spec/template/spec/initContainers/0/securityContext/runAsNonRoot');
-    // namespace without labels: create the map (RFC 6902 add needs the parent); with labels: add the key
-    expect(fix('NOIP-NS-001:Namespace/ci')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'restricted' } }]);
-    expect(fix('NOIP-NS-001:Namespace/monitoring')!.patch).toEqual([{ op: 'add', path: '/metadata/labels/pod-security.kubernetes.io~1enforce', value: 'restricted' }]);
+    // NS-001 enforces the highest level today's pods already meet (never one that would reject them):
+    // namespace without labels: create the map (RFC 6902 add needs the parent)
+    expect(fix('NOIP-NS-001:Namespace/default')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'restricted' } }]);
+    expect(fix('NOIP-NS-001:Namespace/payments')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'baseline' } }]);
+    // pods below baseline (privileged debug shell, hostPID exporter): no automatic fix
+    expect(fix('NOIP-NS-001:Namespace/ci')).toBeUndefined();
+    expect(fix('NOIP-NS-001:Namespace/monitoring')).toBeUndefined();
+    // namespace with labels: add the key
+    const labelled = buildReport(snap({ namespaces: [{ metadata: { name: 'app', labels: { team: 'a' } } }], networkPolicies: covered, pods: [hardenedPod()] }), 'live');
+    expect(labelled.findings.find((f) => f.checkId === 'NOIP-NS-001')!.fix!.patch).toEqual([{ op: 'add', path: '/metadata/labels/pod-security.kubernetes.io~1enforce', value: 'baseline' }]);
     // advisory only
     expect(fix('NOIP-NET-001:Namespace/ci')).toBeUndefined();
     expect(fix('NOIP-POD-008:Deployment/shop/frontend/frontend')).toBeUndefined();
@@ -52,18 +59,20 @@ describe('noip fix', () => {
     cpSync(new URL('./fixtures/misconfig', import.meta.url).pathname, join(dir, 'k8s'), { recursive: true });
     const out = join(dir, 'fixed');
     const r = await fixManifests(['k8s'], { outDir: out, cwd: dir });
+    // NS-001 in noip-test-bad is left for review: its pods don't meet baseline, so enforcing would reject them.
     expect(r.applied.map((a) => a.findingId).sort()).toEqual([
-      'NOIP-NS-001:Namespace/noip-test-bad',
       'NOIP-POD-001:Pod/noip-test-bad/privileged/app',
       'NOIP-POD-002:Pod/noip-test-bad/hostpid',
       'NOIP-POD-005:Pod/noip-test-bad/privileged/app',
     ]);
-    expect(r.advisory.map((f) => f.checkId).sort()).toEqual(['NOIP-NET-001', 'NOIP-POD-009', 'NOIP-RBAC-002']);
+    expect(r.advisory.map((f) => f.checkId).sort()).toEqual(['NOIP-NET-001', 'NOIP-NS-001', 'NOIP-POD-009', 'NOIP-RBAC-002']);
     const patched = readFileSync(join(out, 'k8s/10-bad-pods.yaml'), 'utf8');
     expect(patched).toContain('# hostPID: true -> NOIP-POD-002 (CIS-5.2.2)'); // comments kept
     expect(patched).not.toMatch(/^\s*hostPID: true/m);
     const rescan = buildReport(await loadManifests([join(out, 'k8s')]), 'manifests');
-    expect(rescan.findings.map((f) => f.checkId).sort()).toEqual(['NOIP-NET-001', 'NOIP-POD-009', 'NOIP-RBAC-002']);
+    expect(rescan.findings.map((f) => f.checkId).sort()).toEqual(['NOIP-NET-001', 'NOIP-NS-001', 'NOIP-POD-009', 'NOIP-RBAC-002']);
+    // With the pods fixed they now meet baseline, so a second `noip fix` pass can safely label the namespace.
+    expect(rescan.findings.find((f) => f.checkId === 'NOIP-NS-001')!.fix!.patch[0]!.value).toEqual({ 'pod-security.kubernetes.io/enforce': 'baseline' });
   });
 
   it('patches objects inside a List and is idempotent in place', async () => {

@@ -101,6 +101,16 @@ export function renderHtml(r: Report, lang: Lang = 'en'): string {
     )
     .join('');
   const [netTitle, netNote] = t.network.split(' (');
+  const psa = r.podSecurity?.namespaces.length
+    ? `<h2>${esc(t.psa)}</h2><p class="muted">${esc(t.psaNote(r.podSecurity.policyVersion))}</p><div class="table-wrap"><table><thead><tr>${t.psaCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.podSecurity.namespaces
+        .map(
+          (n) =>
+            `<tr><td><code>${esc(n.namespace)}</code></td><td>${n.enforce ? `<code>${esc(n.enforce)}</code>` : esc(t.psaUnset)}</td><td><b>${esc(n.canEnforce)}</b></td><td>${esc(n.pods)}</td><td>${
+              n.blockers.map((b) => `<code>${esc(b.resource)}</code>: ${esc(b.reasons.join('; '))}`).join('<br>') || '—'
+            }</td></tr>`,
+        )
+        .join('')}</tbody></table></div>`
+    : '';
   const network = r.network
     ? `<h2>${esc(netTitle)} <span class="muted">(${esc(netNote)}</span></h2><p class="muted">CNI: ${esc(r.network.cni ?? t.unknown)} · ${esc(t.networkMeta[0])}: ${esc(r.network.toolVersion ?? t.unknown)} · ${esc(t.networkMeta[1])}: <code>${esc(r.network.inputSha256)}</code></p><div class="table-wrap"><table><thead><tr>${t.networkCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.network.checks
         .map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td><td>${esc(c.detail ?? '')}</td></tr>`)
@@ -128,7 +138,7 @@ ${suppressed}${warnings}
     )
     .join('')}</tbody></table></div>
 <p class="muted"><i>${esc(L.disclaimer(r.mappingDisclaimer))}</i></p>
-${imported}${network}
+${psa}${imported}${network}
 <h2>${esc(t.provenance)}</h2><dl>
 <dt>${esc(t.scanner)}</dt><dd>noip ${esc(p.scanner.version)} @ <code>${esc(p.scanner.gitSha)}</code></dd>
 <dt>${esc(t.cluster)}</dt><dd>${esc(p.cluster.context ?? 'n/a')}, Kubernetes ${esc(p.cluster.serverVersion)}${p.cluster.platform ? ` (${esc(p.cluster.platform)})` : ''}, ${esc(t.nodes(p.cluster.nodeCount))}</dd>

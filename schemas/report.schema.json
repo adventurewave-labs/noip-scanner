@@ -733,6 +733,83 @@
         }
       }
     },
+    "podSecurity": {
+      "description": "Which Pod Security level each namespace could enforce today without rejecting its current pods. A planning aid; never affects the score.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyVersion",
+        "namespaces"
+      ],
+      "properties": {
+        "policyVersion": {
+          "type": "string",
+          "pattern": "^1\\.\\d+$"
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "namespace",
+              "pods",
+              "canEnforce",
+              "blockers"
+            ],
+            "properties": {
+              "namespace": {
+                "type": "string"
+              },
+              "enforce": {
+                "type": "string"
+              },
+              "pods": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "canEnforce": {
+                "enum": [
+                  "privileged",
+                  "baseline",
+                  "restricted"
+                ]
+              },
+              "blockers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "resource",
+                    "level",
+                    "reasons"
+                  ],
+                  "properties": {
+                    "resource": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "enum": [
+                        "baseline",
+                        "restricted"
+                      ]
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "warnings": {
       "type": "array",
       "items": {
