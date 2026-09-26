@@ -108,6 +108,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 42 | Baseline gating: `scan --baseline` fails only on new findings or chains; SARIF `baselineState`; action `baseline` input | shipped (`loop/r42-baseline`) |
 | 43 | Exposure: Services in the snapshot (type, selector, externalIPs only; RBAC gains `services`); risk chain for externally reachable workloads with host access; cluster-admin chains note exposure | shipped (`loop/r43-exposure`) |
 | 44 | Independent review #6, with fixes: one definition of "new" for the baseline gate and SARIF, action baseline errors are explained, severity-filter drift warning, exposure lists every Service, the internal-LB caveat, exposure grouping made linear | shipped (`loop/r44-review6`) |
+| 45 | Final wrap-up: stack health for #42–#45 | shipped (`loop/r45-final`) |
 
 ## Later
 These are candidates, not commitments:

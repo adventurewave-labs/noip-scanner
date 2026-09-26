@@ -65,3 +65,17 @@ After round 40 the tip has 329 tests. Round 41 raises the ratchet to statements 
 - the pre-commit hook, end to end with pre-commit 4.6.2;
 - the DSSE signatures, against cosign v2.6.5;
 - the OSCAL and CycloneDX output, against their official schemas.
+
+### Rounds 41–44 (PRs #42–#45)
+
+These were checked the same way, and all four pass the raised ratchet (statements 99, branches 94.5, functions 100, lines 99).
+
+| Branch (PR) | Commit | Gates | Statements | Branches | Functions | Lines |
+|---|---|---|---|---|---|---|
+| r41-wrapup (#42) | `8bdaf4d` | ✅ | 99.46% | 95.1% | 100% | 99.72% |
+| r42-baseline (#43) | `92ed6c1` | ✅ | 99.46% | 95.11% | 100% | 99.72% |
+| r43-exposure (#44) | `d649725` | ✅ | 99.47% | 95.32% | 100% | 99.73% |
+| r44-review6 (#45) | `fd392ea` | ✅ | 99.48% | 95.3% | 100% | 99.73% |
+
+The tip, #45, has 339 tests. Six independent reviews have been done: rounds 7, 18, 27, 32, 37 and 44. Each one has regression tests for every confirmed defect.
+
