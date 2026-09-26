@@ -30,7 +30,10 @@ const scopeOf = (f: Finding): Priority['scope'] =>
 
 export function executiveSummary(r: Report, top = 5): ExecutiveSummary {
   const groups = new Map<string, Finding[]>();
-  for (const f of r.findings) groups.set(f.checkId, [...(groups.get(f.checkId) ?? []), f]);
+  for (const f of r.findings) {
+    if (!groups.has(f.checkId)) groups.set(f.checkId, []);
+    groups.get(f.checkId)!.push(f);
+  }
   const priorities: Priority[] = [...groups.values()]
     .map((fs) => {
       const f = fs[0]!;

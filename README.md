@@ -79,9 +79,10 @@ Each pod is attributed to the workload that owns it:
 
 - **Chunked lists.** Every cluster LIST call is fetched in pages of 500 using `limit`/`continue`, so a very large cluster never needs one giant response.
 - **Expired lists.** If a continue token expires mid-list (HTTP 410), the list restarts once from the beginning so the result stays consistent.
-- **Measured speed.** `npm run bench` on the cloud dev box:
-  - 10k pods across 500 namespaces: scan in about 0.3 s, HTML plus SARIF in about 0.25 s, about 160 MB heap.
-  - 50k pods: scan in about 1 s.
+- **Measured speed.** `npm run bench` on the cloud dev box. The synthetic cluster includes broad RBAC, so every workload is part of a risk chain, and the timings include Pod Security readiness:
+  - 10k pods across 500 namespaces: scan in about 0.5 s, HTML plus SARIF in about 0.45 s, about 215 MB heap.
+  - 10k pods in a single namespace: about the same.
+  - 50k pods across 2,500 namespaces: scan in about 2 s, HTML plus SARIF in about 2 s, about 0.9 GB heap.
 - **CI budget.** `test/scale.test.ts` runs a 10k-pod budget check on every PR.
 
 ## Kubernetes version support

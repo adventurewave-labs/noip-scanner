@@ -324,7 +324,8 @@ export function podSecurityReadiness(
   for (const p of pods) {
     const ns = p.metadata?.namespace ?? 'default';
     if (excluded.has(ns)) continue;
-    byNs.set(ns, [...(byNs.get(ns) ?? []), p]);
+    if (!byNs.has(ns)) byNs.set(ns, []);
+    byNs.get(ns)!.push(p);
   }
   const labels = new Map(namespaces.map((n) => [n.metadata?.name, n.metadata?.labels?.['pod-security.kubernetes.io/enforce']]));
   const out = [...byNs.entries()].map(([namespace, list]) => {

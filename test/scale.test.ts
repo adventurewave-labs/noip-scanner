@@ -35,6 +35,9 @@ export function bigCluster(namespaces = 500, podsPerNs = 20) {
     nodeCount: 200,
     namespaces: Array.from({ length: namespaces }, (_, n) => ({ metadata: { name: `ns-${n}` } })),
     networkPolicies: Array.from({ length: namespaces / 2 }, (_, n) => ({ metadata: { name: 'np', namespace: `ns-${n * 2}` }, spec: { podSelector: {}, egress: [{}] } })),
+    // RBAC that makes every workload an entry point of a risk chain (review: chain building was quadratic).
+    clusterRoleBindings: [{ metadata: { name: 'all-sas' }, roleRef: { apiGroup: '', kind: 'ClusterRole', name: 'cluster-admin' }, subjects: [{ kind: 'Group', name: 'system:serviceaccounts' }] }],
+    roleBindings: Array.from({ length: namespaces }, (_, n) => ({ metadata: { name: 'rb', namespace: `ns-${n}` }, roleRef: { apiGroup: '', kind: 'Role', name: 'r' }, subjects: [{ kind: 'ServiceAccount', name: 'default' }] })),
     pods,
   });
 }
@@ -54,6 +57,8 @@ describe('scale', () => {
     expect(r.findings.some((f) => f.id === 'NOIP-POD-008:Deployment/ns-0/web/app')).toBe(true);
     expect(r.findings.filter((f) => f.resource.kind === 'Deployment' && f.resource.namespace === 'ns-0' && f.checkId === 'NOIP-POD-008')).toHaveLength(2);
     expect(r.findings.length).toBeGreaterThan(10_000);
+    expect(r.riskChains!.length).toBe(1000); // one cluster-admin chain + one default-SA chain per namespace
+    expect(r.podSecurity!.namespaces).toHaveLength(500);
     // Generous budgets for shared CI runners; locally this is ~10x faster.
     expect(tScan).toBeLessThan(4000);
     expect(tAll).toBeLessThan(10_000);

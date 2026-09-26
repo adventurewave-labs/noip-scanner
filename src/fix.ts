@@ -59,7 +59,11 @@ export async function fixManifests(paths: string[], opts: ScanOptions & { outDir
   const byFile = new Map<string, Finding[]>();
   const advisory: Finding[] = [];
   for (const f of report.findings) {
-    if (f.fix && f.resource.source?.file) byFile.set(f.resource.source.file, [...(byFile.get(f.resource.source.file) ?? []), f]);
+    if (f.fix && f.resource.source?.file) {
+      const file = f.resource.source.file;
+      if (!byFile.has(file)) byFile.set(file, []);
+      byFile.get(file)!.push(f);
+    }
     else advisory.push(f);
   }
 

@@ -8,11 +8,11 @@ const pods = [];
 for (let n = 0; n < ns; n++)
   for (let i = 0; i < per; i++)
     pods.push({ metadata: { name: `p-${i}`, namespace: `ns-${n}` }, spec: { hostNetwork: i % 7 === 0, containers: [{ name: 'c', image: 'x', securityContext: i % 2 ? { privileged: true } : {} }] } });
-const snapshot = { serverVersion: { gitVersion: 'v1.31.0' }, nodeCount: 0, namespaces: Array.from({ length: ns }, (_, n) => ({ metadata: { name: `ns-${n}` } })), pods, networkPolicies: [], clusterRoleBindings: [], roleBindings: [] };
+const snapshot = { serverVersion: { gitVersion: 'v1.31.0' }, nodeCount: 0, namespaces: Array.from({ length: ns }, (_, n) => ({ metadata: { name: `ns-${n}` } })), pods, networkPolicies: [], clusterRoleBindings: [{ metadata: { name: 'all-sas' }, roleRef: { kind: 'ClusterRole', name: 'cluster-admin' }, subjects: [{ kind: 'Group', name: 'system:serviceaccounts' }] }], roleBindings: Array.from({ length: ns }, (_, n) => ({ metadata: { name: 'rb', namespace: `ns-${n}` }, roleRef: { kind: 'Role', name: 'r' }, subjects: [{ kind: 'ServiceAccount', name: 'default' }] })) };
 const t0 = performance.now();
 const r = buildReport(snapshot, 'live');
 const t1 = performance.now();
 renderHtml(r);
 renderSarif(r);
 const t2 = performance.now();
-console.log(`${pods.length} pods / ${ns} namespaces: ${r.findings.length} findings; scan ${(t1 - t0).toFixed(0)} ms, html+sarif ${(t2 - t1).toFixed(0)} ms, heap ${(process.memoryUsage().heapUsed / 1e6).toFixed(0)} MB`);
+console.log(`${pods.length} pods / ${ns} namespaces: ${r.findings.length} findings, ${r.riskChains?.length ?? 0} risk chains; scan ${(t1 - t0).toFixed(0)} ms, html+sarif ${(t2 - t1).toFixed(0)} ms, heap ${(process.memoryUsage().heapUsed / 1e6).toFixed(0)} MB`);

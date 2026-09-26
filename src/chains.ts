@@ -47,9 +47,20 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
     if (!m.has(key)) m.set(key, p);
     bySa.set(saOf(p), m);
   }
-  const findingsOn = (workload: string) => findings.filter((f) => resourceKey({ ...f.resource, container: undefined }) === workload);
-  const rbacFinding = (kind: string, name: string, ns?: string) =>
-    findings.filter((f) => f.checkId.startsWith('NOIP-RBAC-') && f.resource.kind === kind && f.resource.name === name && (ns === undefined || f.resource.namespace === ns)).map((f) => f.id);
+  // Index once: per-workload and per-binding lookups must stay linear on large clusters (see scripts/bench.mjs).
+  const byWorkload = new Map<string, Finding[]>();
+  const byBinding = new Map<string, string[]>();
+  for (const f of findings) {
+    const w = resourceKey({ ...f.resource, container: undefined });
+    if (!byWorkload.has(w)) byWorkload.set(w, []);
+    byWorkload.get(w)!.push(f);
+    if (f.checkId.startsWith('NOIP-RBAC-')) {
+      if (!byBinding.has(w)) byBinding.set(w, []);
+      byBinding.get(w)!.push(f.id);
+    }
+  }
+  const findingsOn = (workload: string) => byWorkload.get(workload) ?? [];
+  const rbacFinding = (kind: string, name: string, ns?: string) => byBinding.get(resourceKey({ kind, namespace: ns, name })) ?? [];
 
   const chains: RiskChain[] = [];
   // 1. A running workload carries a token that is cluster-admin.
