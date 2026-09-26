@@ -139,7 +139,7 @@ describe('CEL rules agree with the checks', () => {
   it('namespace rule matches NOIP-NS-001, and system namespaces are excluded by a match condition', () => {
     const ns = byId('NOIP-NS-001');
     const check = ALL_CHECKS.find((c) => c.id === 'NOIP-NS-001')!;
-    for (const labels of [undefined, {}, { 'pod-security.kubernetes.io/enforce': 'restricted' }, { 'pod-security.kubernetes.io/enforce': 'baseline' }, { 'pod-security.kubernetes.io/enforce': 'privileged' }]) {
+    for (const labels of [undefined, {} as Record<string, string>, { 'pod-security.kubernetes.io/enforce': 'restricted' }, { 'pod-security.kubernetes.io/enforce': 'baseline' }, { 'pod-security.kubernetes.io/enforce': 'privileged' }]) {
       const n: V1Namespace = { metadata: { name: 'x', ...(labels ? { labels } : {}) } };
       expect(admits(ns, n)).toBe(check.run(snap({ namespaces: [n] }), { excludedNamespaces: new Set() }).length === 0);
     }
