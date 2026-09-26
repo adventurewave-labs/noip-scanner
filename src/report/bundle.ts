@@ -3,6 +3,7 @@ import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from '
 import { join } from 'node:path';
 import type { Report } from '../types.js';
 import { renderHtml } from './html.js';
+import type { Lang } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 import { renderSarif } from './sarif.js';
 
@@ -17,11 +18,11 @@ export const SUMS_FILE = 'SHA256SUMS';
 
 const sha256 = (b: string | Buffer) => createHash('sha256').update(b).digest('hex');
 
-export function bundleFiles(r: Report): Record<string, string> {
+export function bundleFiles(r: Report, lang: Lang = 'en'): Record<string, string> {
   return {
     'report.json': JSON.stringify(r, null, 2) + '\n',
-    'report.md': renderMarkdown(r),
-    'report.html': renderHtml(r),
+    'report.md': renderMarkdown(r, lang),
+    'report.html': renderHtml(r, lang),
     'report.sarif': JSON.stringify(renderSarif(r), null, 2) + '\n',
   };
 }
@@ -45,10 +46,10 @@ export function inTotoStatement(r: Report, digests: Record<string, string>) {
 }
 
 /** Write the bundle and return the SHA256SUMS content. Refuses to write into a non-empty directory. */
-export function writeBundle(dir: string, r: Report): string {
+export function writeBundle(dir: string, r: Report, lang: Lang = 'en'): string {
   mkdirSync(dir, { recursive: true });
   if (readdirSync(dir).length) throw new Error(`--bundle: ${dir} is not empty; refusing to mix evidence from different scans`);
-  const files = bundleFiles(r);
+  const files = bundleFiles(r, lang);
   const digests: Record<string, string> = {};
   for (const [name, body] of Object.entries(files)) {
     writeFileSync(join(dir, name), body);

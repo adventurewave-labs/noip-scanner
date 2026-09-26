@@ -1,5 +1,6 @@
 import { resourceKey } from '../scan.js';
 import { SEVERITIES, type Report } from '../types.js';
+import { localise, STRINGS, type Lang, type Strings } from './i18n.js';
 import { executiveSummary } from './priorities.js';
 
 /**
@@ -8,6 +9,10 @@ import { executiveSummary } from './priorities.js';
  */
 const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+/** Minimal inline markdown in our own strings: **bold** only. Applied after escaping. */
+const bold = (s: string) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** Our own strings may quote paths in `backticks`; show them as code. Applied after escaping. */
+const ticks = (s: string) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
 
 const CSS = `
 :root{--bg:#fff;--fg:#1a1a1a;--muted:#5b5b5b;--line:#e3e3e3;--card:#f7f7f8;--crit:#b3261e;--high:#c2410c;--med:#a16207;--low:#4b5563;--ok:#15803d;--warn-bg:#fef3c7;--warn-fg:#78350f}
@@ -26,102 +31,110 @@ dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}dt{c
 @media print{body{background:#fff;color:#000}main{max-width:none;padding:0}.tile,.banner{border:1px solid #999}h2{break-after:avoid}tr{break-inside:avoid}}
 `;
 
-function execHtml(r: Report): string {
+function execHtml(r: Report, t: Strings): string {
+  const L = localise(t);
   const ex = executiveSummary(r);
+  const headline = r.findings.length
+    ? t.headline(r.summary.score, r.findings.length, r.summary.bySeverity.critical, r.summary.bySeverity.high, ex.failedChecks, r.provenance.checksRun.length, ex.quickWins)
+    : t.headlineClean(r.provenance.checksRun.length, r.summary.score);
   const list = ex.priorities.length
-    ? `<ol>${ex.priorities
+    ? `<p class="muted">${esc(t.fixFirst)}</p><ol>${ex.priorities
         .map(
           (p) =>
-            `<li><span class="sev ${p.severity}">${p.severity}</span> <b>${esc(p.checkId)}</b> ${esc(p.title)}: ${p.scope}-scoped, ${p.resources} resource(s)${p.autoFixable ? `, ${p.autoFixable} auto-fixable` : ''}. <span class="muted">e.g. ${p.sample.map((x) => `<code>${esc(x)}</code>`).join(', ')}</span></li>`,
+            `<li><span class="sev ${p.severity}">${esc(t.sev[p.severity])}</span> <b>${esc(p.checkId)}</b> ${esc(L.title(p.checkId, p.title))}: ${esc(t.priorityLine(p.severity, p.scope, p.resources, p.autoFixable))}. <span class="muted">${esc(t.eg)} ${p.sample.map((x) => `<code>${esc(x)}</code>`).join(', ')}</span></li>`,
         )
-        .join('')}</ol><p class="muted">Quick wins with a deterministic fix: <b>${ex.quickWins}</b> · need a design decision: <b>${ex.needsDesign}</b></p>`
+        .join('')}</ol><p class="muted">${t.quickWins(ex.quickWins, ex.needsDesign).map(bold).join(' · ')}</p>`
     : '';
-  return `<h2>Executive summary</h2><p>${esc(ex.headline)}</p>${list}`;
+  return `<h2>${esc(t.executive)}</h2><p>${esc(headline)}</p>${list}`;
 }
 
-export function renderHtml(r: Report): string {
+export function renderHtml(r: Report, lang: Lang = 'en'): string {
+  const t = STRINGS[lang];
+  const L = localise(t);
   const p = r.provenance;
   const tiles: Array<[string, string | number, string?]> = [
-    ['Score', `${r.summary.score}/100`],
-    ['Findings', r.summary.findings],
-    ...SEVERITIES.map((s) => [s, r.summary.bySeverity[s], s] as [string, number, string]),
-    ['Controls failed', `${r.summary.controlsFailed}/${r.controls.length}`],
-    ...(r.summary.suppressed ? ([['Suppressed', r.summary.suppressed]] as Array<[string, number]>) : []),
+    [t.score, `${r.summary.score}/100`],
+    [t.findings, r.summary.findings],
+    ...SEVERITIES.map((s) => [t.sev[s], r.summary.bySeverity[s], s] as [string, number, string]),
+    [t.controlsFailedTile, `${r.summary.controlsFailed}/${r.controls.length}`],
+    ...(r.summary.suppressed ? ([[t.suppressedTitle, r.summary.suppressed]] as Array<[string, number]>) : []),
   ];
   const banner =
     r.source === 'demo'
-      ? '<div class="banner" role="note">DEMO DATA: generated from the bundled fictional fixture, not a live cluster.</div>'
+      ? `<div class="banner" role="note">${ticks(t.demoBanner)}</div>`
       : r.source === 'manifests'
-        ? '<div class="banner" role="note">OFFLINE MANIFEST SCAN: findings describe the YAML as written, not what is running.</div>'
+        ? `<div class="banner" role="note">${ticks(t.manifestsBanner)}</div>`
         : '';
 
   const findings = r.findings.length
-    ? `<div class="table-wrap"><table><thead><tr><th>Severity</th><th>Check</th><th>Resource</th><th>Evidence</th><th>Remediation</th><th>Controls</th></tr></thead><tbody>${r.findings
+    ? `<div class="table-wrap"><table><thead><tr><th>${esc(t.importedCols[0])}</th><th>${esc(t.check)}</th><th>${esc(t.resource)}</th><th>${esc(t.evidence)}</th><th>${esc(t.remediation)}</th><th>${esc(t.controls)}</th></tr></thead><tbody>${r.findings
         .map(
           (f) =>
-            `<tr id="${esc(f.id)}"><td><span class="sev ${f.severity}">${f.severity}</span></td><td><b>${esc(f.checkId)}</b><br>${esc(f.title)}</td>` +
+            `<tr id="${esc(f.id)}"><td><span class="sev ${f.severity}">${esc(t.sev[f.severity])}</span></td><td><b>${esc(f.checkId)}</b><br>${esc(L.title(f.checkId, f.title))}</td>` +
             `<td><code>${esc(resourceKey(f.resource))}</code>${f.resource.source ? `<br><span class="muted">${esc(f.resource.source.file)}${f.resource.source.line ? `:${f.resource.source.line}` : ''}</span>` : ''}</td>` +
-            `<td><code>${esc(f.evidence)}</code></td><td>${esc(f.remediation)}</td><td>${esc(f.controls.join(', ') || '—')}${f.references ? `<br><span class="muted">NSA/CISA: ${esc(f.references.nsaCisa.join('; ') || '—')}<br>NIST 800-190: ${esc(f.references.nist800190.join('; ') || '—')}</span>` : ''}</td></tr>`,
+            `<td><code>${esc(f.evidence)}</code></td><td>${esc(L.remediation(f.checkId, f.remediation))}</td><td>${esc(f.controls.join(', ') || '—')}${f.references ? `<br><span class="muted">NSA/CISA: ${esc(f.references.nsaCisa.join('; ') || '—')}<br>NIST 800-190: ${esc(f.references.nist800190.join('; ') || '—')}</span>` : ''}</td></tr>`,
         )
         .join('')}</tbody></table></div>`
-    : '<p>No findings.</p>';
+    : `<p>${esc(t.noFindings)}</p>`;
 
   const suppressed = r.suppressed?.length
-    ? `<h2>Suppressed (accepted risk)</h2><div class="table-wrap"><table><thead><tr><th>Finding</th><th>Reason</th><th>Owner</th><th>Expires</th></tr></thead><tbody>${r.suppressed
+    ? `<h2>${esc(t.suppressedTitle)}</h2><div class="table-wrap"><table><thead><tr>${t.suppressedCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.suppressed
         .map((x) => `<tr><td><code>${esc(x.finding.id)}</code></td><td>${esc(x.suppression.reason)}</td><td>${esc(x.suppression.owner)}</td><td>${esc(x.suppression.expires)}</td></tr>`)
         .join('')}</tbody></table></div>`
     : '';
-  const warnings = r.warnings?.length ? `<h2>Warnings</h2><ul>${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : '';
+  const warnings = r.warnings?.length ? `<h2>${esc(t.warnings)}</h2><ul>${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : '';
+  const [explTitle, explNote] = t.explanation.split(' (');
   const explanation = r.explanation
-    ? `<h2>Explanation <span class="muted">(LLM-generated, advisory)</span></h2><p>${esc(r.explanation.summary)}</p><ol>${r.explanation.priorities
-        .map((x) => `<li><a href="#${esc(x.findingId)}"><code>${esc(x.findingId)}</code></a>: ${esc(x.why)} <i>Fix:</i> ${esc(x.fix)}</li>`)
+    ? `<h2>${esc(explTitle)} <span class="muted">(${esc(explNote)}</span></h2><p>${esc(r.explanation.summary)}</p><ol>${r.explanation.priorities
+        .map((x) => `<li><a href="#${esc(x.findingId)}"><code>${esc(x.findingId)}</code></a>: ${esc(x.why)} <i>${esc(t.fix)}</i> ${esc(x.fix)}</li>`)
         .join('')}</ol>`
     : '';
   const imported = (r.imported ?? [])
     .map(
       (run) =>
-        `<h2>Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''} <span class="muted">(not in NOIP's score)</span></h2>` +
+        `<h2>${esc(t.imported)}: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''} <span class="muted">(${esc(t.notInScore)})</span></h2>` +
         (run.results.length
-          ? `<div class="table-wrap"><table><thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead><tbody>${run.results
-              .map((x) => `<tr><td><span class="sev ${x.severity}">${x.severity}</span></td><td><code>${esc(x.ruleId)}</code></td><td>${x.location ? `<code>${esc(x.location.uri)}${x.location.line ? `:${x.location.line}` : ''}</code>` : '—'}</td><td>${esc(x.message)}</td></tr>`)
+          ? `<div class="table-wrap"><table><thead><tr>${t.importedCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${run.results
+              .map((x) => `<tr><td><span class="sev ${x.severity}">${esc(t.sev[x.severity])}</span></td><td><code>${esc(x.ruleId)}</code></td><td>${x.location ? `<code>${esc(x.location.uri)}${x.location.line ? `:${x.location.line}` : ''}</code>` : '—'}</td><td>${esc(x.message)}</td></tr>`)
               .join('')}</tbody></table></div>`
-          : '<p>No results.</p>'),
+          : `<p>${esc(t.noResults)}</p>`),
     )
     .join('');
+  const [netTitle, netNote] = t.network.split(' (');
   const network = r.network
-    ? `<h2>Network <span class="muted">(ingested from k8s-netinspect)</span></h2><div class="table-wrap"><table><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${r.network.checks
+    ? `<h2>${esc(netTitle)} <span class="muted">(${esc(netNote)}</span></h2><div class="table-wrap"><table><thead><tr>${t.networkCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.network.checks
         .map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td><td>${esc(c.detail ?? '')}</td></tr>`)
         .join('')}</tbody></table></div>`
     : '';
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="generator" content="noip ${esc(p.scanner.version)}">
-<title>NOIP posture report: ${esc(p.cluster.context ?? r.source)}</title><style>${CSS}</style></head>
+<title>${esc(t.title)}: ${esc(p.cluster.context ?? r.source)}</title><style>${CSS}</style></head>
 <body><main>
-<h1>Kubernetes posture report</h1>
-<p class="muted">${esc(p.cluster.context ?? 'n/a')} · Kubernetes ${esc(p.cluster.serverVersion)} · scanned ${esc(p.scannedAt)} · source <b>${esc(r.source)}</b></p>
+<h1>${esc(t.htmlTitle)}</h1>
+<p class="muted">${esc(p.cluster.context ?? 'n/a')} · Kubernetes ${esc(p.cluster.serverVersion)} · ${esc(t.scannedAt.toLowerCase())} ${esc(p.scannedAt)} · ${esc(t.source.toLowerCase())} <b>${esc(r.source)}</b></p>
 ${banner}
 <div class="tiles">${tiles.map(([k, v, cls]) => `<div class="tile"><span>${esc(k)}</span><b${cls ? ` class="${cls}"` : ''}>${esc(v)}</b></div>`).join('')}</div>
-${execHtml(r)}
+${execHtml(r, t)}
 ${explanation}
-<h2>Findings</h2>${findings}
+<h2>${esc(t.findings)}</h2>${findings}
 ${suppressed}${warnings}
-<h2>Controls</h2><div class="table-wrap"><table><thead><tr><th>Control</th><th>Title</th><th>Status</th><th>Findings</th><th>SOC 2 (ref)</th><th>HIPAA (ref)</th></tr></thead><tbody>${r.controls
+<h2>${esc(t.controls)}</h2><div class="table-wrap"><table><thead><tr>${t.controlsCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.controls
     .map(
       (c) =>
-        `<tr><td>${esc(c.id)}</td><td>${esc(c.title)}</td><td class="${c.status}">${c.status}</td><td>${c.findingIds.length}</td><td>${esc(c.referenceMappings.soc2.join(', '))}</td><td>${esc(c.referenceMappings.hipaa.join(', '))}</td></tr>`,
+        `<tr><td>${esc(c.id)}</td><td>${esc(L.control(c.id, c.title))}</td><td class="${c.status}">${esc(c.status === 'fail' ? t.fail : t.pass)}</td><td>${c.findingIds.length}</td><td>${esc(c.referenceMappings.soc2.join(', '))}</td><td>${esc(c.referenceMappings.hipaa.join(', '))}</td></tr>`,
     )
     .join('')}</tbody></table></div>
-<p class="muted"><i>${esc(r.mappingDisclaimer)}</i></p>
+<p class="muted"><i>${esc(L.disclaimer(r.mappingDisclaimer))}</i></p>
 ${imported}${network}
-<h2>Provenance</h2><dl>
-<dt>Scanner</dt><dd>noip ${esc(p.scanner.version)} @ <code>${esc(p.scanner.gitSha)}</code></dd>
-<dt>Cluster</dt><dd>${esc(p.cluster.context ?? 'n/a')}, Kubernetes ${esc(p.cluster.serverVersion)}${p.cluster.platform ? ` (${esc(p.cluster.platform)})` : ''}, ${p.cluster.nodeCount} node(s)</dd>
-<dt>Scanned at</dt><dd>${esc(p.scannedAt)}</dd>
-<dt>Checks run</dt><dd>${esc(p.checksRun.join(', '))}</dd>
-<dt>Excluded namespaces</dt><dd>${esc(p.excludedNamespaces.join(', ') || 'none')}</dd>
-${p.minSeverity ? `<dt>Minimum severity</dt><dd>${esc(p.minSeverity)}</dd>` : ''}
+<h2>${esc(t.provenance)}</h2><dl>
+<dt>${esc(t.scanner)}</dt><dd>noip ${esc(p.scanner.version)} @ <code>${esc(p.scanner.gitSha)}</code></dd>
+<dt>${esc(t.cluster)}</dt><dd>${esc(p.cluster.context ?? 'n/a')}, Kubernetes ${esc(p.cluster.serverVersion)}${p.cluster.platform ? ` (${esc(p.cluster.platform)})` : ''}, ${esc(t.nodes(p.cluster.nodeCount))}</dd>
+<dt>${esc(t.scannedAt)}</dt><dd>${esc(p.scannedAt)}</dd>
+<dt>${esc(t.checksRun)}</dt><dd>${esc(p.checksRun.join(', '))}</dd>
+<dt>${esc(t.excluded)}</dt><dd>${esc(p.excludedNamespaces.join(', ') || t.none)}</dd>
+${p.minSeverity ? `<dt>${esc(t.minSeverity)}</dt><dd>${esc(p.minSeverity)}</dd>` : ''}
 </dl>
 </main></body></html>
 `;

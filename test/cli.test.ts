@@ -230,3 +230,13 @@ describe('noip scan --contexts / --all-contexts', () => {
     await expect(runScan({ output: 'json', contexts: ['a'], outDir: 'x', bundle: 'b' })).rejects.toThrow(/apply to a single cluster/);
   });
 });
+
+describe('noip scan --lang es', () => {
+  it('renders Spanish markdown and HTML; JSON is unaffected', async () => {
+    await main(['node', 'noip', 'scan', '--demo', '-o', 'md', '--lang', 'es']);
+    expect(out).toContain('# Reporte de postura NOIP');
+    out = '';
+    await main(['node', 'noip', 'scan', '--demo', '--lang', 'es']);
+    expect(JSON.parse(out).findings[0].title).toBe('Privileged container');
+  });
+});

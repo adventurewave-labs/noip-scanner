@@ -8,6 +8,7 @@ import { createProvider } from './llm/provider.js';
 import { verifyBundle, writeBundle } from './report/bundle.js';
 import { diffReports, regressed, renderDiffMarkdown } from './report/diff.js';
 import { renderHtml } from './report/html.js';
+import { LANGS, type Lang } from './report/i18n.js';
 import { importSarif } from './report/import-sarif.js';
 import { renderMarkdown } from './report/markdown.js';
 import { renderSarif } from './report/sarif.js';
@@ -37,6 +38,7 @@ interface ScanFlags {
   contexts?: string[];
   allContexts?: boolean;
   outDir?: string;
+  lang?: Lang;
   minSeverity?: Severity;
   failOn?: Severity;
 }
@@ -74,14 +76,14 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   }
 
   if (flags.bundle) {
-    writeBundle(flags.bundle, report);
+    writeBundle(flags.bundle, report, flags.lang);
     warn(`evidence bundle written to ${flags.bundle} (verify: noip verify-bundle ${flags.bundle}  or  sha256sum -c SHA256SUMS)`);
   }
   const body =
     flags.output === 'md'
-      ? renderMarkdown(report)
+      ? renderMarkdown(report, flags.lang)
       : flags.output === 'html'
-        ? renderHtml(report)
+        ? renderHtml(report, flags.lang)
         : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
   if (flags.out) writeFileSync(flags.out, body);
   else process.stdout.write(body);
@@ -102,7 +104,7 @@ async function runFleet(flags: ScanFlags, opts: Parameters<typeof buildReport>[2
   }
   const { allContexts, scanFleet } = await import('./fleet.js');
   const contexts = flags.allContexts ? allContexts(opts.kubeconfig) : flags.contexts!;
-  const { fleet, reports } = await scanFleet(contexts, { ...opts, outDir: flags.outDir, format: flags.output });
+  const { fleet, reports } = await scanFleet(contexts, { ...opts, outDir: flags.outDir, format: flags.output, lang: flags.lang });
   for (const c of fleet.clusters) warn(c.status === 'ok' ? `${c.context}: ${c.findings} finding(s), score ${c.score}/100` : `${c.context}: UNREACHABLE (${c.error})`);
   warn(`fleet: ${fleet.clusters.filter((c) => c.status === 'ok').length}/${fleet.clusters.length} cluster(s) scanned -> ${flags.outDir}/fleet.md`);
   if (fleet.clusters.some((c) => c.status === 'unreachable')) return EXIT.K8S_UNAVAILABLE;
@@ -125,6 +127,7 @@ export function buildCli(): Command {
     .option('--out-dir <dir>', 'output directory for multi-context scans')
     .addOption(new Option('-o, --output <format>', 'report format').choices(['json', 'md', 'sarif', 'html']).default('json'))
     .option('--out <file>', 'write the report to a file instead of stdout')
+    .addOption(new Option('--lang <lang>', 'language for md/html reports (JSON and SARIF stay English)').choices([...LANGS]).default('en'))
     .option('--explain', 'add an LLM explanation (redacted input, schema-validated output; needs an API key)')
     .option('--import-sarif <files...>', "merge other scanners' SARIF (Trivy, kubescape, Checkov…) as imported results; never changes NOIP's score")
     .option('--netinspect <file>', 'merge a k8s-netinspect JSON result as a "network" section')

@@ -29,6 +29,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 |---|---|
 | `--kubeconfig <path>` / `--context <name>` | Which cluster to scan. Defaults to `$KUBECONFIG`, then `~/.kube/config`, then in-cluster. |
 | `-o, --output json\|md\|sarif\|html` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. `sarif` is SARIF 2.1.0 (see [below](#sarif--code-scanning)). `html` is a single self-contained, print-ready file for client handoff: no scripts or external assets, light and dark themes, and every value escaped. |
+| `--lang en\|es` | Language for the `md` and `html` reports; the default is `en`. JSON and SARIF always stay English and canonical. Spanish translates every label, check title, remediation, control title and disclaimer. Evidence and IDs are left as-is. |
 | `--out <file>` | Write to a file instead of stdout. |
 | `--explain` | Add an LLM explanation. Needs a key. If the provider fails, `explanation: null` and the scan still succeeds. |
 | `--import-sarif <files...>` | Merge other scanners' SARIF 2.1.0 output (Trivy, kubescape, Checkov, KICS) into the report as `imported[]`, attributed to each tool. This never changes NOIP's score or control status. |

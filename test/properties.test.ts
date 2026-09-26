@@ -179,7 +179,7 @@ describe('fuzz: redaction', () => {
       fc.property(fc.string({ maxLength: 20 }), tokens, fc.string({ maxLength: 20 }), (pre, tok, post) => {
         expect(scrubString(`${pre} ${tok} ${post}`)).not.toContain(tok);
       }),
-      RUNS,
+      { numRuns: 1000 },
     );
   });
 });

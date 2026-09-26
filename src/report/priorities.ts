@@ -17,6 +17,8 @@ export interface Priority {
 
 export interface ExecutiveSummary {
   headline: string;
+  /** Number of checks with at least one finding (used by localised headlines). */
+  failedChecks: number;
   priorities: Priority[];
   quickWins: number;
   needsDesign: number;
@@ -57,5 +59,5 @@ export function executiveSummary(r: Report, top = 5): ExecutiveSummary {
       ? `No findings across ${r.provenance.checksRun.length} checks. Score ${r.summary.score}/100.`
       : `Score ${r.summary.score}/100. ${r.findings.length} finding(s) (${critical} critical, ${high} high) from ${priorities.length} of ${r.provenance.checksRun.length} checks; ` +
         `${quickWins} have a deterministic fix.`;
-  return { headline, priorities: priorities.slice(0, top), quickWins, needsDesign: r.findings.length - quickWins };
+  return { headline, failedChecks: priorities.length, priorities: priorities.slice(0, top), quickWins, needsDesign: r.findings.length - quickWins };
 }

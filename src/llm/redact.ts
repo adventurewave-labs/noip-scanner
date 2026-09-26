@@ -5,9 +5,10 @@ export const DROP_KEYS = new Set(['env', 'envFrom', 'annotations', 'data', 'stri
 
 const SCRUB_PATTERNS: Array<[RegExp, string]> = [
   [/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '[REDACTED:PEM]'],
-  [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '[REDACTED:JWT]'],
+  // base64url segments may end in `-`/`_`, so use explicit token boundaries, not \b (found by fuzzing)
+  [/(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?![A-Za-z0-9_-])/g, '[REDACTED:JWT]'],
   [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, '[REDACTED:AWS_KEY]'],
-  [/\b(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}\b/g, '[REDACTED:API_KEY]'],
+  [/(?<![A-Za-z0-9_-])(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}(?![A-Za-z0-9_-])/g, '[REDACTED:API_KEY]'],
   [/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, '[REDACTED:GITHUB_TOKEN]'],
   [/\b[Bb]earer\s+[A-Za-z0-9._~+/-]{12,}=*/g, 'Bearer [REDACTED]'],
   [/((?:password|passwd|pwd|secret|token|api[_-]?key)\s*[=:]\s*)[^\s,;'"]+/gi, '$1[REDACTED]'],

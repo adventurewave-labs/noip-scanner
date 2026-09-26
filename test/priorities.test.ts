@@ -32,7 +32,7 @@ describe('executive summary', () => {
     expect(renderMarkdown(r)).toContain('1. **NOIP-POD-001: Privileged container**');
     expect(renderHtml(r)).toContain('<h2>Executive summary</h2>');
     const clean = buildReport(snap(), 'live');
-    expect(executiveSummary(clean)).toEqual({ headline: 'No findings across 15 checks. Score 100/100.', priorities: [], quickWins: 0, needsDesign: 0 });
+    expect(executiveSummary(clean)).toEqual({ headline: 'No findings across 15 checks. Score 100/100.', failedChecks: 0, priorities: [], quickWins: 0, needsDesign: 0 });
     expect(renderMarkdown(clean)).not.toContain('Fix these first');
   });
 

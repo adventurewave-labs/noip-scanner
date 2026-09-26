@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { K8sUnavailable } from './errors.js';
 import { loadKubeConfig } from './k8s/client.js';
 import { renderHtml } from './report/html.js';
+import type { Lang } from './report/i18n.js';
 import { renderMarkdown } from './report/markdown.js';
 import { renderSarif } from './report/sarif.js';
 import { buildReport, getSnapshot, type ScanOptions } from './scan.js';
@@ -39,7 +40,7 @@ export function allContexts(kubeconfig?: string): string[] {
 
 export async function scanFleet(
   contexts: string[],
-  opts: ScanOptions & { outDir: string; format: Format; now?: Date },
+  opts: ScanOptions & { outDir: string; format: Format; now?: Date; lang?: Lang },
   snap: typeof getSnapshot = getSnapshot,
 ): Promise<{ fleet: Fleet; reports: Report[] }> {
   if (!contexts.length) throw new Error('no contexts to scan');
@@ -54,7 +55,7 @@ export async function scanFleet(
       const r = buildReport(snapshot, source, opts);
       const file = `${safeName(context)}.${EXT[opts.format]}`;
       const body =
-        opts.format === 'md' ? renderMarkdown(r) : opts.format === 'html' ? renderHtml(r) : JSON.stringify(opts.format === 'sarif' ? renderSarif(r) : r, null, 2) + '\n';
+        opts.format === 'md' ? renderMarkdown(r, opts.lang) : opts.format === 'html' ? renderHtml(r, opts.lang) : JSON.stringify(opts.format === 'sarif' ? renderSarif(r) : r, null, 2) + '\n';
       writeFileSync(join(opts.outDir, file), body);
       reports.push(r);
       fleet.clusters.push({

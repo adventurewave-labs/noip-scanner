@@ -1,6 +1,7 @@
 import { resourceKey } from '../scan.js';
 import { executiveSummary } from './priorities.js';
 import type { Report } from '../types.js';
+import { localise, STRINGS, type Lang } from './i18n.js';
 
 /**
  * Neutralise untrusted text (imported SARIF, manifest names) for Markdown: one line, no raw HTML,
@@ -17,104 +18,110 @@ const code = (s: string) => {
   return run ? `${fence} ${t} ${fence}` : `${fence}${t}${fence}`;
 };
 
-/** Human-readable report. Every finding's `Evidence:` line is byte-identical to the JSON `evidence` field. */
-export function renderMarkdown(r: Report): string {
+/** Human-readable report. Evidence is the JSON `evidence` text, escaped for Markdown (renders identically). */
+export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
+  const t = STRINGS[lang];
+  const L = localise(t);
   const p = r.provenance;
   const out: string[] = [];
-  out.push('# NOIP posture report', '');
+  out.push(`# ${t.title}`, '');
   if (r.source === 'demo') {
-    out.push('> **DEMO DATA.** This report was generated from the bundled fixture `fixtures/demo-cluster.json`, not a live cluster.', '');
+    const [head, ...rest] = t.demoBanner.split('. ');
+    out.push(`> **${head}.** ${rest.join('. ')}`, '');
   } else if (r.source === 'manifests') {
-    out.push('> **OFFLINE MANIFEST SCAN.** Findings describe the YAML as written, not what is running. Namespace-level checks only see Namespace objects present in the input.', '');
+    const [head, ...rest] = t.manifestsBanner.split('. ');
+    out.push(`> **${head}.** ${rest.join('. ')}`, '');
   }
   out.push(
     '| | |',
     '|---|---|',
-    `| Source | \`${r.source}\` |`,
-    `| Scanned at | ${p.scannedAt} |`,
-    `| Cluster | ${esc(p.cluster.context ?? 'n/a')} — Kubernetes ${p.cluster.serverVersion}${p.cluster.platform ? ` (${p.cluster.platform})` : ''}, ${p.cluster.nodeCount} node(s) |`,
-    `| Scanner | noip ${p.scanner.version} @ \`${p.scanner.gitSha.slice(0, 12)}\` |`,
-    `| Checks run | ${p.checksRun.length} (${p.checksRun.join(', ')}) |`,
-    `| Excluded namespaces | ${p.excludedNamespaces.length ? p.excludedNamespaces.join(', ') : 'none'} |`,
+    `| ${t.source} | \`${r.source}\` |`,
+    `| ${t.scannedAt} | ${p.scannedAt} |`,
+    `| ${t.cluster} | ${esc(p.cluster.context ?? 'n/a')} — Kubernetes ${p.cluster.serverVersion}${p.cluster.platform ? ` (${p.cluster.platform})` : ''}, ${t.nodes(p.cluster.nodeCount)} |`,
+    `| ${t.scanner} | noip ${p.scanner.version} @ \`${p.scanner.gitSha.slice(0, 12)}\` |`,
+    `| ${t.checksRun} | ${p.checksRun.length} (${p.checksRun.join(', ')}) |`,
+    `| ${t.excluded} | ${p.excludedNamespaces.length ? p.excludedNamespaces.join(', ') : t.none} |`,
     '',
-    '## Summary',
+    `## ${t.summary}`,
     '',
-    `Score **${r.summary.score}/100** · ${r.summary.findings} finding(s) · ` +
-      `${r.summary.bySeverity.critical} critical, ${r.summary.bySeverity.high} high, ${r.summary.bySeverity.medium} medium, ${r.summary.bySeverity.low} low · ` +
-      `${r.summary.checksFailed}/${p.checksRun.length} checks failed · ${r.summary.controlsFailed}/${r.controls.length} controls failed` +
-      (r.summary.suppressed ? ` · ${r.summary.suppressed} suppressed (accepted risk, listed below)` : ''),
+    `${t.score} **${r.summary.score}/100** · ${t.findingsN(r.summary.findings)} · ` +
+      `${r.summary.bySeverity.critical} ${t.sev.critical}, ${r.summary.bySeverity.high} ${t.sev.high}, ${r.summary.bySeverity.medium} ${t.sev.medium}, ${r.summary.bySeverity.low} ${t.sev.low} · ` +
+      `${t.checksFailed(r.summary.checksFailed, p.checksRun.length)} · ${t.controlsFailed(r.summary.controlsFailed, r.controls.length)}` +
+      (r.summary.suppressed ? ` · ${t.suppressedN(r.summary.suppressed)}` : ''),
     '',
   );
 
   const ex = executiveSummary(r);
-  out.push('## Executive summary', '', ex.headline, '');
+  const headline = r.findings.length
+    ? t.headline(r.summary.score, r.findings.length, r.summary.bySeverity.critical, r.summary.bySeverity.high, ex.failedChecks, p.checksRun.length, ex.quickWins)
+    : t.headlineClean(p.checksRun.length, r.summary.score);
+  out.push(`## ${t.executive}`, '', headline, '');
   if (ex.priorities.length) {
-    out.push('Fix these first (deterministic ranking: severity, then blast radius, then reach):', '');
-    ex.priorities.forEach((p, i) =>
+    out.push(t.fixFirst, '');
+    ex.priorities.forEach((pr, i) =>
       out.push(
-        `${i + 1}. **${p.checkId}: ${esc(p.title)}**: ${p.severity}, ${p.scope}-scoped, ${p.resources} resource(s)` +
-          `${p.autoFixable ? `, ${p.autoFixable} auto-fixable` : ''} (e.g. ${p.sample.map(code).join(', ')})`,
+        `${i + 1}. **${pr.checkId}: ${esc(L.title(pr.checkId, pr.title))}**: ${t.priorityLine(pr.severity, pr.scope, pr.resources, pr.autoFixable)} (${t.eg} ${pr.sample.map(code).join(', ')})`,
       ),
     );
-    out.push('', `Quick wins with a deterministic fix: **${ex.quickWins}** · need a design decision: **${ex.needsDesign}**`, '');
+    out.push('', t.quickWins(ex.quickWins, ex.needsDesign).join(' · '), '');
   }
 
   if (r.explanation) {
-    out.push('## Explanation (LLM-generated, advisory)', '', esc(r.explanation.summary), '');
-    for (const pr of r.explanation.priorities) out.push(`- **${esc(pr.findingId)}** — ${esc(pr.why)} _Fix:_ ${esc(pr.fix)}`);
+    out.push(`## ${t.explanation}`, '', esc(r.explanation.summary), '');
+    for (const pr of r.explanation.priorities) out.push(`- **${esc(pr.findingId)}** — ${esc(pr.why)} _${t.fix}_ ${esc(pr.fix)}`);
     if (r.explanation.caveats.length) out.push('', ...r.explanation.caveats.map((c) => `> ${esc(c)}`));
     out.push('');
   } else if (r.explanation === null) {
-    out.push('_LLM explanation requested but unavailable or rejected by schema validation; deterministic findings below are unaffected._', '');
+    out.push(`_${t.explanationMissing}_`, '');
   }
 
-  out.push('## Findings', '');
-  if (!r.findings.length) out.push('No findings.', '');
+  out.push(`## ${t.findings}`, '');
+  if (!r.findings.length) out.push(t.noFindings, '');
   for (const f of r.findings) {
     out.push(
-      `### [${f.severity.toUpperCase()}] ${f.checkId} — ${f.title}`,
+      `### [${t.sev[f.severity].toUpperCase()}] ${f.checkId} — ${L.title(f.checkId, f.title)}`,
       '',
-      `- Resource: ${code(resourceKey(f.resource))}${f.resource.source ? ` (${esc(f.resource.source.file)}${f.resource.source.line ? `:${f.resource.source.line}` : ''})` : ''}`,
-      `- Evidence: ${esc(f.evidence)}`,
-      `- Remediation: ${f.remediation}`,
-      `- Controls: ${f.controls.length ? f.controls.join(', ') : '—'}`,
-      ...(f.references ? [`- References: NSA/CISA ${f.references.nsaCisa.join('; ') || '—'} · NIST SP 800-190 ${f.references.nist800190.join('; ') || '—'}`] : []),
-      `- Finding ID: ${code(f.id)}`,
+      `- ${t.resource}: ${code(resourceKey(f.resource))}${f.resource.source ? ` (${esc(f.resource.source.file)}${f.resource.source.line ? `:${f.resource.source.line}` : ''})` : ''}`,
+      `- ${t.evidence}: ${esc(f.evidence)}`,
+      `- ${t.remediation}: ${L.remediation(f.checkId, f.remediation)}`,
+      `- ${t.controls}: ${f.controls.length ? f.controls.join(', ') : '—'}`,
+      ...(f.references ? [`- ${t.references}: NSA/CISA ${f.references.nsaCisa.join('; ') || '—'} · NIST SP 800-190 ${f.references.nist800190.join('; ') || '—'}`] : []),
+      `- ${t.findingId}: ${code(f.id)}`,
       '',
     );
   }
 
   if (r.suppressed?.length) {
-    out.push('## Suppressed (accepted risk)', '', '| Finding | Reason | Owner | Expires |', '|---|---|---|---|');
+    out.push(`## ${t.suppressedTitle}`, '', `| ${t.suppressedCols.join(' | ')} |`, '|---|---|---|---|');
     for (const x of r.suppressed) out.push(`| ${code(x.finding.id)} | ${esc(x.suppression.reason)} | ${esc(x.suppression.owner)} | ${x.suppression.expires} |`);
     out.push('');
   }
-  if (r.warnings?.length) out.push('## Warnings', '', ...r.warnings.map((w) => `- ${esc(w)}`), '');
+  if (r.warnings?.length) out.push(`## ${t.warnings}`, '', ...r.warnings.map((w) => `- ${esc(w)}`), '');
 
-  out.push('## Controls', '', '| Control | Title | Status | Findings | SOC 2 (ref) | HIPAA (ref) |', '|---|---|---|---|---|---|');
+  out.push(`## ${t.controls}`, '', `| ${t.controlsCols.join(' | ')} |`, '|---|---|---|---|---|---|');
   for (const c of r.controls) {
     out.push(
-      `| ${c.id} | ${esc(c.title)} | ${c.status === 'fail' ? '❌ fail' : '✅ pass'} | ${c.findingIds.length} | ${c.referenceMappings.soc2.join(', ')} | ${c.referenceMappings.hipaa.join(', ')} |`,
+      `| ${c.id} | ${esc(L.control(c.id, c.title))} | ${c.status === 'fail' ? `❌ ${t.fail}` : `✅ ${t.pass}`} | ${c.findingIds.length} | ${c.referenceMappings.soc2.join(', ')} | ${c.referenceMappings.hipaa.join(', ')} |`,
     );
   }
-  out.push('', `_${r.mappingDisclaimer}_`, '');
+  out.push('', `_${L.disclaimer(r.mappingDisclaimer)}_`, '');
 
   for (const run of r.imported ?? []) {
-    out.push(`## Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', `From ${code(run.inputFile)} (sha256 \`${run.inputSha256.slice(0, 12)}…\`). Not included in NOIP's score or control status.`, '');
-    if (!run.results.length) out.push('No results.', '');
+    out.push(`## ${t.imported}: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', t.importedFrom(code(run.inputFile), run.inputSha256.slice(0, 12)), '');
+    if (!run.results.length) out.push(t.noResults, '');
     else {
-      out.push('| Severity | Rule | Location | Message |', '|---|---|---|---|');
-      for (const x of run.results) out.push(`| ${x.severity} | ${esc(x.ruleId)} | ${x.location ? esc(`${x.location.uri}${x.location.line ? `:${x.location.line}` : ''}`) : '—'} | ${esc(x.message)} |`);
+      out.push(`| ${t.importedCols.join(' | ')} |`, '|---|---|---|---|');
+      for (const x of run.results) out.push(`| ${t.sev[x.severity]} | ${esc(x.ruleId)} | ${x.location ? esc(`${x.location.uri}${x.location.line ? `:${x.location.line}` : ''}`) : '—'} | ${esc(x.message)} |`);
       out.push('');
     }
   }
 
   if (r.network) {
     const n = r.network;
-    out.push('## Network (ingested from k8s-netinspect)', '', `CNI: ${n.cni ?? 'unknown'} · tool version: ${n.toolVersion ?? 'unknown'} · input sha256: \`${n.inputSha256}\``, '');
-    out.push('| Check | Status | Detail |', '|---|---|---|');
+    out.push(`## ${t.network}`, '', `CNI: ${n.cni ?? t.unknown} · tool version: ${n.toolVersion ?? t.unknown} · input sha256: \`${n.inputSha256}\``, '');
+    out.push(`| ${t.networkCols.join(' | ')} |`, '|---|---|---|');
     for (const c of n.checks) out.push(`| ${esc(c.name)} | ${c.status} | ${esc(c.detail ?? '')} |`);
-    out.push('', '_NOIP does not diagnose the network itself; this section is reproduced from the input file._', '');
+    out.push('', `_${t.networkNote}_`, '');
   }
   return out.join('\n');
 }

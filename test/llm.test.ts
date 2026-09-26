@@ -131,3 +131,11 @@ describe('provider seam', () => {
     expect(parseJsonLoose('nope')).toBeUndefined();
   });
 });
+
+describe('redaction regressions (found by fuzzing)', () => {
+  it('scrubs JWT / API keys whose last base64url character is - or _', () => {
+    for (const tok of ['eyJaA_-a0a-A0.Aa-A__0_--.--__-a_---', 'sk-abcdefghijklmnop_-', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc_def-ghi_']) {
+      expect(scrubString(` ${tok} `)).not.toContain(tok);
+    }
+  });
+});
