@@ -1,5 +1,6 @@
 import { resourceKey } from '../scan.js';
 import { SEVERITIES, type Report } from '../types.js';
+import { executiveSummary } from './priorities.js';
 
 /**
  * Self-contained, print-ready HTML report for client handoff: no scripts, no external assets, one file.
@@ -24,6 +25,19 @@ dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}dt{c
 .table-wrap{overflow-x:auto}
 @media print{body{background:#fff;color:#000}main{max-width:none;padding:0}.tile,.banner{border:1px solid #999}h2{break-after:avoid}tr{break-inside:avoid}}
 `;
+
+function execHtml(r: Report): string {
+  const ex = executiveSummary(r);
+  const list = ex.priorities.length
+    ? `<ol>${ex.priorities
+        .map(
+          (p) =>
+            `<li><span class="sev ${p.severity}">${p.severity}</span> <b>${esc(p.checkId)}</b> ${esc(p.title)}: ${p.scope}-scoped, ${p.resources} resource(s)${p.autoFixable ? `, ${p.autoFixable} auto-fixable` : ''}. <span class="muted">e.g. ${p.sample.map((x) => `<code>${esc(x)}</code>`).join(', ')}</span></li>`,
+        )
+        .join('')}</ol><p class="muted">Quick wins with a deterministic fix: <b>${ex.quickWins}</b> · need a design decision: <b>${ex.needsDesign}</b></p>`
+    : '';
+  return `<h2>Executive summary</h2><p>${esc(ex.headline)}</p>${list}`;
+}
 
 export function renderHtml(r: Report): string {
   const p = r.provenance;
@@ -89,6 +103,7 @@ export function renderHtml(r: Report): string {
 <p class="muted">${esc(p.cluster.context ?? 'n/a')} · Kubernetes ${esc(p.cluster.serverVersion)} · scanned ${esc(p.scannedAt)} · source <b>${esc(r.source)}</b></p>
 ${banner}
 <div class="tiles">${tiles.map(([k, v, cls]) => `<div class="tile"><span>${esc(k)}</span><b${cls ? ` class="${cls}"` : ''}>${esc(v)}</b></div>`).join('')}</div>
+${execHtml(r)}
 ${explanation}
 <h2>Findings</h2>${findings}
 ${suppressed}${warnings}

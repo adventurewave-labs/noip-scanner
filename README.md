@@ -92,6 +92,8 @@ Reports validate against [`schemas/report.schema.json`](schemas/report.schema.js
 - **`findings[]`:** each has a stable `id`, the resource, a one-line `evidence` string naming the offending field, the remediation, and the control IDs it maps to.
 - **`controls[]`:** pass/fail per CIS control, with SOC 2 / HIPAA reference mappings and the disclaimer `reference mappings, not an attestation`.
 
+The markdown and HTML reports open with an **executive summary**. It's fully deterministic, with no LLM involved. Findings are grouped by check and ranked by severity, then blast radius (cluster-wide, then namespace, then workload), then how many resources they touch. The summary also counts the quick wins that have a deterministic fix and the findings that need a design decision.
+
 A sample is in [`docs/examples/demo-report.md`](docs/examples/demo-report.md).
 
 ## Audit evidence bundle

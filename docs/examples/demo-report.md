@@ -5,15 +5,29 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T17:08:59.778Z |
+| Scanned at | 2026-09-26T19:43:25.025Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `90e5b0339da1` |
+| Scanner | noip 0.1.0 @ `3c8d4d327917` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
 ## Summary
 
 Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/15 checks failed · 10/10 controls failed
+
+## Executive summary
+
+Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 15 have a deterministic fix.
+
+Fix these first (deterministic ranking: severity, then blast radius, then reach):
+
+1. **NOIP-POD-001: Privileged container**: critical, workload-scoped, 1 resource(s), 1 auto-fixable (e.g. `Pod/ci/debug-shell`)
+2. **NOIP-POD-002: Pod shares the host PID namespace**: critical, workload-scoped, 1 resource(s), 1 auto-fixable (e.g. `DaemonSet/monitoring/node-exporter`)
+3. **NOIP-RBAC-002: cluster-admin granted to a default ServiceAccount**: high, cluster-scoped, 1 resource(s) (e.g. `ClusterRoleBinding/ci-deployer-admin`)
+4. **NOIP-NET-001: Namespace has no NetworkPolicy**: high, namespace-scoped, 3 resource(s) (e.g. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
+5. **NOIP-POD-006: Container may run as root**: high, workload-scoped, 3 resource(s), 3 auto-fixable (e.g. `Deployment/payments/api`, `Pod/ci/debug-shell`)
+
+Quick wins with a deterministic fix: **15** · need a design decision: **10**
 
 ## Findings
 

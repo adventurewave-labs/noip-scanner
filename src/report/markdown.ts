@@ -1,4 +1,5 @@
 import { resourceKey } from '../scan.js';
+import { executiveSummary } from './priorities.js';
 import type { Report } from '../types.js';
 
 /**
@@ -44,6 +45,19 @@ export function renderMarkdown(r: Report): string {
       (r.summary.suppressed ? ` · ${r.summary.suppressed} suppressed (accepted risk, listed below)` : ''),
     '',
   );
+
+  const ex = executiveSummary(r);
+  out.push('## Executive summary', '', ex.headline, '');
+  if (ex.priorities.length) {
+    out.push('Fix these first (deterministic ranking: severity, then blast radius, then reach):', '');
+    ex.priorities.forEach((p, i) =>
+      out.push(
+        `${i + 1}. **${p.checkId}: ${esc(p.title)}**: ${p.severity}, ${p.scope}-scoped, ${p.resources} resource(s)` +
+          `${p.autoFixable ? `, ${p.autoFixable} auto-fixable` : ''} (e.g. ${p.sample.map(code).join(', ')})`,
+      ),
+    );
+    out.push('', `Quick wins with a deterministic fix: **${ex.quickWins}** · need a design decision: **${ex.needsDesign}**`, '');
+  }
 
   if (r.explanation) {
     out.push('## Explanation (LLM-generated, advisory)', '', esc(r.explanation.summary), '');

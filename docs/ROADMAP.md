@@ -84,7 +84,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | # | Item | Status |
 |---|---|---|
 | 20 | Stack health: every branch head checked the way CI would; `npm run ci:local` | shipped (`loop/r20-ci-local`) |
-| 21 | Deterministic executive summary / "fix these first" | planned |
+| 21 | Deterministic executive summary / "fix these first": severity, then blast radius, then reach; quick wins vs design decisions | shipped (`loop/r21-exec-summary`) |
 | 22 | Spanish reports (`--lang es`) | planned |
 | 23 | Kubernetes version support facts | planned |
 | 24 | Posture history and trend (`noip history`) | planned |
