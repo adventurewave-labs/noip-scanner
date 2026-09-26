@@ -77,6 +77,18 @@ export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): L
           })),
         ],
       },
+      // Imported runs are re-emitted as their own SARIF runs, attributed to the original tool.
+      ...(r.imported ?? []).map((run) => ({
+        tool: { driver: { name: run.tool, ...(run.version ? { semanticVersion: run.version } : {}), informationUri: 'https://github.com/adventurewave-labs/noip-scanner' } },
+        properties: { importedBy: 'noip', inputFile: run.inputFile, inputSha256: run.inputSha256 },
+        results: run.results.map((x) => ({
+          ruleId: x.ruleId,
+          level: LEVEL[x.severity],
+          message: { text: x.message || x.ruleId },
+          ...(x.location ? { locations: [{ physicalLocation: { artifactLocation: { uri: x.location.uri }, ...(x.location.line ? { region: { startLine: x.location.line } } : {}) } }] } : {}),
+          properties: { 'security-severity': SECURITY_SEVERITY[x.severity] },
+        })),
+      })),
     ],
   };
 }

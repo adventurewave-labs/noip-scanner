@@ -15,6 +15,13 @@ const validate = ajv.compile(JSON.parse(readFileSync(new URL('../schemas/report.
 const demo = () => buildReport(loadDemoSnapshot(), 'demo', { now: new Date('2026-01-01T00:00:00Z') });
 
 describe('report schema (R-10)', () => {
+  it('validates with imported SARIF runs', async () => {
+    const { importSarif } = await import('../src/report/import-sarif.js');
+    const r = demo();
+    r.imported = importSarif(readFileSync(new URL('./fixtures/sarif/trivy.sarif', import.meta.url), 'utf8'), 'trivy.sarif');
+    expect(validate(r), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it('validates the demo report', () => {
     expect(validate(demo()), JSON.stringify(validate.errors)).toBe(true);
   });

@@ -68,6 +68,15 @@ export interface NetworkSection {
   checks: Array<{ name: string; status: 'pass' | 'warn' | 'fail' | 'info'; detail?: string; resource?: string }>;
 }
 
+/** Results merged from another scanner's SARIF (`--import-sarif`). Never affect NOIP's score or controls. */
+export interface ImportedRun {
+  tool: string;
+  version?: string;
+  inputFile: string;
+  inputSha256: string;
+  results: Array<{ ruleId: string; severity: Severity; message: string; location?: { uri: string; line?: number } }>;
+}
+
 export interface Explanation {
   summary: string;
   priorities: Array<{ findingId: string; why: string; fix: string }>;
@@ -99,6 +108,7 @@ export interface Report {
   controls: ControlResult[];
   mappingDisclaimer: string;
   network?: NetworkSection;
+  imported?: ImportedRun[];
   explanation?: Explanation | null;
   /** Accepted-risk findings, each with the suppression that hid it (reason, owner, expiry). */
   suppressed?: Array<{ finding: Finding; suppression: { reason: string; owner: string; expires: string; rule: string } }>;

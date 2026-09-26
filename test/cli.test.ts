@@ -201,3 +201,12 @@ describe('noip fix subcommand', () => {
     expect(err).toMatch(/needs a human: NOIP-RBAC-002/);
   });
 });
+
+describe('noip scan --import-sarif', () => {
+  it('merges imported results into the report and keeps it schema-valid', async () => {
+    const f = new URL('./fixtures/sarif/trivy.sarif', import.meta.url).pathname;
+    await runScan({ output: 'json', demo: true, importSarif: [f] });
+    const r = JSON.parse(out);
+    expect(r.imported.map((x: { tool: string }) => x.tool)).toEqual(['Trivy', 'Checkov']);
+  });
+});

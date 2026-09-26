@@ -71,6 +71,16 @@ export function renderMarkdown(r: Report): string {
   }
   out.push('', `_${r.mappingDisclaimer}_`, '');
 
+  for (const run of r.imported ?? []) {
+    out.push(`## Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', `From \`${run.inputFile}\` (sha256 \`${run.inputSha256.slice(0, 12)}…\`). Not included in NOIP's score or control status.`, '');
+    if (!run.results.length) out.push('No results.', '');
+    else {
+      out.push('| Severity | Rule | Location | Message |', '|---|---|---|---|');
+      for (const x of run.results) out.push(`| ${x.severity} | ${esc(x.ruleId)} | ${x.location ? esc(`${x.location.uri}${x.location.line ? `:${x.location.line}` : ''}`) : '—'} | ${esc(x.message.replace(/\s+/g, ' '))} |`);
+      out.push('');
+    }
+  }
+
   if (r.network) {
     const n = r.network;
     out.push('## Network (ingested from k8s-netinspect)', '', `CNI: ${n.cni ?? 'unknown'} · tool version: ${n.toolVersion ?? 'unknown'} · input sha256: \`${n.inputSha256}\``, '');

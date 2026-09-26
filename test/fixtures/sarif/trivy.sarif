@@ -1,0 +1,29 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "version": "0.58.0",
+          "rules": [
+            { "id": "KSV-0014", "defaultConfiguration": { "level": "error" }, "properties": { "security-severity": "8.0" } },
+            { "id": "CVE-2024-0001", "properties": { "security-severity": "9.8" } },
+            { "id": "KSV-0011", "defaultConfiguration": { "level": "note" } }
+          ]
+        }
+      },
+      "results": [
+        { "ruleId": "KSV-0014", "level": "error", "message": { "text": "Container 'api' should set readOnlyRootFilesystem" }, "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "k8s/api.yaml" }, "region": { "startLine": 12 } } }] },
+        { "ruleId": "CVE-2024-0001", "message": { "text": "openssl 3.0.1 is affected" }, "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "registry.example.com/api:1.0" } } }] },
+        { "ruleId": "KSV-0011", "message": { "text": "CPU limit not set" } },
+        { "ruleId": "KSV-0014", "message": { "text": "accepted by the tool" }, "suppressions": [{ "kind": "inSource" }] }
+      ]
+    },
+    {
+      "tool": { "driver": { "name": "Checkov", "semanticVersion": "3.2.0" } },
+      "results": [ { "ruleId": "CKV_K8S_20", "level": "warning", "message": { "markdown": "Containers should not run with allowPrivilegeEscalation" } } ]
+    }
+  ]
+}

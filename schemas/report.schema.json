@@ -650,6 +650,78 @@
       "items": {
         "type": "string"
       }
+    },
+    "imported": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tool",
+          "inputFile",
+          "inputSha256",
+          "results"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "inputFile": {
+            "type": "string"
+          },
+          "inputSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ruleId",
+                "severity",
+                "message"
+              ],
+              "properties": {
+                "ruleId": {
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "critical",
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "uri"
+                  ],
+                  "properties": {
+                    "uri": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

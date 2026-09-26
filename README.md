@@ -31,6 +31,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `-o, --output json\|md\|sarif\|html` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. `sarif` is SARIF 2.1.0 (see [below](#sarif--code-scanning)). `html` is a single self-contained, print-ready file for client handoff: no scripts or external assets, light and dark themes, and every value escaped. |
 | `--out <file>` | Write to a file instead of stdout. |
 | `--explain` | Add an LLM explanation. Needs a key. If the provider fails, `explanation: null` and the scan still succeeds. |
+| `--import-sarif <files...>` | Merge other scanners' SARIF 2.1.0 output (Trivy, kubescape, Checkov, KICS) into the report as `imported[]`, attributed to each tool. This never changes NOIP's score or control status. |
 | `--netinspect <file>` | Merge a network-diagnostics JSON (see [below](#network-section)) into the report. |
 | `--include-system` | Also scan `kube-system`, `kube-public` and `kube-node-lease`. These are skipped by default. |
 | `--exclude-namespace <ns...>` | Skip more namespaces. |

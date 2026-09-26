@@ -63,6 +63,17 @@ export function renderHtml(r: Report): string {
         .map((x) => `<li><a href="#${esc(x.findingId)}"><code>${esc(x.findingId)}</code></a>: ${esc(x.why)} <i>Fix:</i> ${esc(x.fix)}</li>`)
         .join('')}</ol>`
     : '';
+  const imported = (r.imported ?? [])
+    .map(
+      (run) =>
+        `<h2>Imported: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''} <span class="muted">(not in NOIP's score)</span></h2>` +
+        (run.results.length
+          ? `<div class="table-wrap"><table><thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead><tbody>${run.results
+              .map((x) => `<tr><td><span class="sev ${x.severity}">${x.severity}</span></td><td><code>${esc(x.ruleId)}</code></td><td>${x.location ? `<code>${esc(x.location.uri)}${x.location.line ? `:${x.location.line}` : ''}</code>` : '—'}</td><td>${esc(x.message)}</td></tr>`)
+              .join('')}</tbody></table></div>`
+          : '<p>No results.</p>'),
+    )
+    .join('');
   const network = r.network
     ? `<h2>Network <span class="muted">(ingested from k8s-netinspect)</span></h2><div class="table-wrap"><table><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${r.network.checks
         .map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td><td>${esc(c.detail ?? '')}</td></tr>`)
@@ -88,7 +99,7 @@ ${suppressed}${warnings}
     )
     .join('')}</tbody></table></div>
 <p class="muted"><i>${esc(r.mappingDisclaimer)}</i></p>
-${network}
+${imported}${network}
 <h2>Provenance</h2><dl>
 <dt>Scanner</dt><dd>noip ${esc(p.scanner.version)} @ <code>${esc(p.scanner.gitSha)}</code></dd>
 <dt>Cluster</dt><dd>${esc(p.cluster.context ?? 'n/a')}, Kubernetes ${esc(p.cluster.serverVersion)}${p.cluster.platform ? ` (${esc(p.cluster.platform)})` : ''}, ${p.cluster.nodeCount} node(s)</dd>

@@ -70,7 +70,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 9 | Self-contained HTML report | shipped (`loop/r9-html`) |
 | 10 | Audit evidence bundle: SHA256SUMS and an in-toto provenance statement, plus `noip verify-bundle` | shipped (`loop/r10-bundle`) |
 | 11 | Remediation patches (JSON Patch per finding) and `noip fix` for manifests, preserving comments | shipped (`loop/r11-fix`) |
-| 12 | Import third-party SARIF (Trivy, kubescape) | planned |
+| 12 | Import third-party SARIF (Trivy, kubescape, Checkov) into one report, without changing NOIP's score | shipped (`loop/r12-import-sarif`) |
 | 13 | Multi-context scans | planned |
 | 14 | Pagination and a scale benchmark | planned |
 | 15 | Property-based and fuzz tests | planned |

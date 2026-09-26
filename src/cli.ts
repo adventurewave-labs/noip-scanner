@@ -8,6 +8,7 @@ import { createProvider } from './llm/provider.js';
 import { verifyBundle, writeBundle } from './report/bundle.js';
 import { diffReports, regressed, renderDiffMarkdown } from './report/diff.js';
 import { renderHtml } from './report/html.js';
+import { importSarif } from './report/import-sarif.js';
 import { renderMarkdown } from './report/markdown.js';
 import { renderSarif } from './report/sarif.js';
 import { ingestNetinspect } from './report/netinspect.js';
@@ -32,6 +33,7 @@ interface ScanFlags {
   ignoreFile?: string;
   ignore?: boolean;
   bundle?: string;
+  importSarif?: string[];
   minSeverity?: Severity;
   failOn?: Severity;
 }
@@ -57,6 +59,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   const report = buildReport(snapshot, source, opts);
   for (const w of report.warnings ?? []) warn(`warning: ${w}`);
   if (flags.netinspect) report.network = ingestNetinspect(readFileSync(flags.netinspect, 'utf8'));
+  if (flags.importSarif?.length) report.imported = flags.importSarif.flatMap((f) => importSarif(readFileSync(f, 'utf8'), f));
   if (flags.explain) {
     try {
       report.explanation = await explain(report, await createProvider(), warn);
@@ -97,6 +100,7 @@ export function buildCli(): Command {
     .addOption(new Option('-o, --output <format>', 'report format').choices(['json', 'md', 'sarif', 'html']).default('json'))
     .option('--out <file>', 'write the report to a file instead of stdout')
     .option('--explain', 'add an LLM explanation (redacted input, schema-validated output; needs an API key)')
+    .option('--import-sarif <files...>', "merge other scanners' SARIF (Trivy, kubescape, Checkov…) as imported results; never changes NOIP's score")
     .option('--netinspect <file>', 'merge a k8s-netinspect JSON result as a "network" section')
     .option('--include-system', 'also scan kube-system, kube-public and kube-node-lease')
     .option('--exclude-namespace <ns...>', 'additional namespaces to skip')
