@@ -36,7 +36,7 @@ const WORKLOADS: Record<string, (spec: Record<string, unknown>) => V1PodTemplate
   CronJob: (s) => ((s.jobTemplate as { spec?: { template?: V1PodTemplateSpec } } | undefined)?.spec?.template),
 };
 
-function listFiles(path: string): string[] {
+export function listFiles(path: string): string[] {
   const st = statSync(path);
   if (!st.isDirectory()) return [path];
   return readdirSync(path)

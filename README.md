@@ -133,6 +133,20 @@ kustomize build overlays/prod | noip scan --manifests - -o md     # rendered Kus
 
 In CI, the offline scan of `test/fixtures/misconfig/` has to produce exactly the same golden findings as the live kind scan.
 
+## Fixes: `noip fix`
+
+When a finding has a fix that needs no judgement call, it carries `fix: {description, patch}`. The patch is an RFC 6902 JSON Patch against the finding's own object, and it uses the correct pod-spec path for each workload kind: Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob and so on.
+
+- **Fixes applied:** privileged → false; `allowPrivilegeEscalation: false` (also dropping `privileged`, since the API rejects that combination); `runAsNonRoot: true`; `readOnlyRootFilesystem: true`; removing `hostPID`, `hostIPC` and `hostNetwork`; and a PSA `enforce: restricted` label on the namespace.
+- **Left for you:** resource limits, secret mounts, NetworkPolicies and RBAC. These are listed as needing a human.
+
+```bash
+noip fix k8s/ --out-dir k8s-fixed      # patched copy of the whole tree (untouched files mirrored)
+noip fix k8s/ --in-place               # or edit in place; run it again and nothing changes
+```
+
+`noip fix` keeps comments, document order, unrelated documents, `List` wrappers and the file's own flow-collection style, and it doesn't re-wrap lines. It never fixes a suppressed finding. After running it, a rescan shows only the findings that still need a human.
+
 ## Suppressions (accepted risk)
 
 A suppression hides a finding you've decided to accept. Each entry names the finding by exact ID, or by check plus a resource glob, and must include a `reason`, an `owner` and an `expires` date. See [`docs/examples/noip-ignore.example.yaml`](docs/examples/noip-ignore.example.yaml).

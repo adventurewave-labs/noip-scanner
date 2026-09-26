@@ -130,6 +130,22 @@ export function buildCli(): Command {
     });
 
   program
+    .command('fix')
+    .description('Apply deterministic fixes from a manifest scan back onto the YAML (comments preserved)')
+    .argument('<paths...>', 'YAML files or directories')
+    .option('--out-dir <dir>', 'write patched copies here (mirrors relative paths)')
+    .option('--in-place', 'overwrite the input files')
+    .option('--ignore-file <path>', 'suppressions to honour (suppressed findings are not fixed)')
+    .option('--no-ignore', 'ignore suppressions')
+    .action(async (paths: string[], flags: { outDir?: string; inPlace?: boolean; ignoreFile?: string; ignore?: boolean }) => {
+      const { fixManifests } = await import('./fix.js');
+      const r = await fixManifests(paths, { ...flags, suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile) });
+      for (const a of r.applied) warn(`fixed ${a.findingId} (${a.file}): ${a.description}`);
+      for (const f of r.advisory) warn(`needs a human: ${f.id} — ${f.remediation}`);
+      warn(`${r.applied.length} fix(es) applied to ${r.filesWritten.length} file(s); ${r.advisory.length} finding(s) left for review`);
+    });
+
+  program
     .command('verify-bundle')
     .description('Verify an evidence bundle: file hashes, in-toto subjects and report provenance')
     .argument('<dir>', 'bundle directory written by `noip scan --bundle`')

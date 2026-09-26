@@ -5,6 +5,7 @@ import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
+import { attachFixes } from './remediation.js';
 import { applySuppressions, type Suppression } from './suppressions.js';
 import {
   SEVERITIES,
@@ -72,6 +73,7 @@ export function buildReport(
   const sevRank = (s: Severity) => SEVERITIES.indexOf(s);
   const floor = opts.minSeverity ? SEVERITIES.indexOf(opts.minSeverity) : SEVERITIES.length;
   const all = [...byId.values()].filter((f) => sevRank(f.severity) <= floor).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
+  attachFixes(all, snapshot);
   const sup = opts.suppressions ? applySuppressions(all, opts.suppressions, opts.now) : undefined;
   const findings = sup ? sup.active : all;
 

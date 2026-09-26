@@ -192,3 +192,12 @@ describe('noip scan --bundle / verify-bundle', () => {
     expect(err).toMatch(/bundle FAIL: hash mismatch: report.md/);
   });
 });
+
+describe('noip fix subcommand', () => {
+  it('reports applied and advisory fixes', async () => {
+    const out = mkdtempSync(join(tmpdir(), 'noip-fixcli-'));
+    await main(['node', 'noip', 'fix', new URL('./fixtures/misconfig', import.meta.url).pathname, '--out-dir', out, '--no-ignore']);
+    expect(err).toMatch(/4 fix\(es\) applied to 2 file\(s\); 3 finding\(s\) left for review/);
+    expect(err).toMatch(/needs a human: NOIP-RBAC-002/);
+  });
+});
