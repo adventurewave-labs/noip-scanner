@@ -79,6 +79,20 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 18 | Second independent review: 5 defects plus 2 minor issues found and fixed, each with a regression test (`test/review2-fixes.test.ts`). The fixes cover `noip fix` securityContext merging and findings it couldn't locate, markdown injection from imported SARIF, fleet file-name collisions, `verify-bundle` following symlinks and accepting non-subject files, the NS-001 labels parent, and an `--out-dir` inside the input. The scale test also exposed per-finding glob recompilation, now cached. | shipped (`loop/r18-review2-fixes`) |
 | 19 | Wrap-up: CLAUDE.md, REQUIREMENTS.md and README brought up to date | shipped (`loop/r19-wrapup`) |
 
+## Loop 3 (2026-09-26 afternoon)
+
+| # | Item | Status |
+|---|---|---|
+| 20 | Stack health: every branch head checked the way CI would; `npm run ci:local` | shipped (`loop/r20-ci-local`) |
+| 21 | Deterministic executive summary / "fix these first" | planned |
+| 22 | Spanish reports (`--lang es`) | planned |
+| 23 | Kubernetes version support facts | planned |
+| 24 | Posture history and trend (`noip history`) | planned |
+| 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | planned |
+| 26 | Distribution: composite GitHub Action and pre-commit hook | planned |
+| 27 | Independent review #3, with fixes | planned |
+| 28 | Wrap-up | planned |
+
 ## Later
 These are candidates, not commitments:
 - OpenVEX-style exception export.

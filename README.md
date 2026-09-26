@@ -263,6 +263,10 @@ The `supply-chain` CI job checks every PR in four ways:
 
 In addition, GitHub Actions are pinned to commit SHAs, and the Docker runtime stage installs with `--ignore-scripts` and runs as a non-root user.
 
+## Running CI without GitHub
+
+`npm run ci:local` (`scripts/ci-local.sh`) runs every CI gate that doesn't need Docker, in the same order as CI and starting from a clean `dist/`. The gates are typecheck, lint, doc-lint, unit tests with the coverage gate, the ratchet check against `NOIP_BASE_REF`, build, demo schema validation, the manifest golden comparison, the MCP stdio smoke test, `npm audit`, and SBOM plus license checks. `NOIP_CI_DOCKER=1` also builds the image if Docker is available.
+
 ## Where it sits in the estate
 
 | Sibling | NOIP's stance |

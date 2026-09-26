@@ -26,7 +26,8 @@
     "start": "node dist/api/server.js",
     "noip": "node dist/cli.js",
     "ratchet": "node scripts/check-ratchet.mjs",
-    "bench": "npm run build && node --no-deprecation scripts/bench.mjs"
+    "bench": "npm run build && node --no-deprecation scripts/bench.mjs",
+    "ci:local": "bash scripts/ci-local.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
