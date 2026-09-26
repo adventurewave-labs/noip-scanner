@@ -21,7 +21,7 @@ src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)
 src/remediation.ts       deterministic RFC 6902 fixes per finding; src/fix.ts applies them to YAML
 src/suppressions.ts      accepted-risk entries (reason/owner/expiry)
 src/fleet.ts             multi-context scans (one report per cluster + fleet summary)
-src/mcp.ts               MCP server: scan, list_checks, explain_finding (read-only)
+src/mcp.ts               MCP server: scan, list_checks, explain_finding, pod_security_readiness, risk_chains, admission_policy (read-only)
 src/api/openapi.ts       OpenAPI 3.1 document (/openapi.json); contract-tested
 src/checks/references.ts NSA/CISA + NIST SP 800-190 reference mappings
 src/chains.ts            risk chains (findings that compound: SA tokens + RBAC); not a check

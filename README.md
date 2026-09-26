@@ -314,11 +314,14 @@ claude mcp add noip -- node /path/to/noip-scanner/dist/cli.js mcp
 
 | Tool | What it returns |
 |---|---|
-| `scan` | The full report for the current kubeconfig, a given `kubeconfig`/`context`, offline `manifests`, or `demo`. Accepts an optional `minSeverity` filter. |
+| `scan` | The full report for the server's kubeconfig (optionally another `context` in it), offline `manifests`, or `demo`. Accepts an optional `minSeverity` filter. |
 | `list_checks` | The check catalog: ids, severities, CIS controls and remediation. |
 | `explain_finding` | One finding by id, with its remediation, control status, SOC 2/HIPAA reference mappings, and suppression status. |
+| `pod_security_readiness` | For each namespace, the Pod Security level it could enforce today and the workloads blocking the next one. |
+| `risk_chains` | Findings that compound into an attack path, with entry points and caveats. |
+| `admission_policy` | ValidatingAdmissionPolicy YAML mirroring the checks. It only generates text; applying it is a human decision. |
 
-All three tools are read-only and marked with `readOnlyHint`. Two safety limits apply. Tool calls **cannot choose the kubeconfig**: an operator sets it with `noip mcp --kubeconfig`, because a kubeconfig can run `exec` credential plugins. `manifests` paths must also resolve inside the server's working directory. They use the caller's kubeconfig and RBAC, and apply `.noip-ignore.yaml` unless you pass `--no-ignore`. No LLM runs inside NOIP here; the calling agent does the reasoning over deterministic findings. An unreachable cluster comes back as a tool error, not a crash. CI starts the real stdio server and calls it with the official MCP client (`scripts/mcp-smoke.mjs`).
+All six tools are read-only and marked with `readOnlyHint`. Two safety limits apply. Tool calls **cannot choose the kubeconfig**: an operator sets it with `noip mcp --kubeconfig`, because a kubeconfig can run `exec` credential plugins. `manifests` paths must also resolve inside the server's working directory. They use the caller's kubeconfig and RBAC, and apply `.noip-ignore.yaml` unless you pass `--no-ignore`. No LLM runs inside NOIP here; the calling agent does the reasoning over deterministic findings. An unreachable cluster comes back as a tool error, not a crash. CI starts the real stdio server and calls it with the official MCP client (`scripts/mcp-smoke.mjs`).
 
 ## HTTP API (optional)
 

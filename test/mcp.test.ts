@@ -14,9 +14,9 @@ type Out = { isError?: boolean; structuredContent?: Record<string, unknown>; con
 const call = async (c: Client, name: string, args: Record<string, unknown> = {}) => (await c.callTool({ name, arguments: args })) as Out;
 
 describe('noip mcp', () => {
-  it('lists three read-only tools', async () => {
+  it('lists six read-only tools', async () => {
     const { tools } = await (await connect()).listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(['explain_finding', 'list_checks', 'scan']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['admission_policy', 'explain_finding', 'list_checks', 'pod_security_readiness', 'risk_chains', 'scan']);
     for (const t of tools) expect(t.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
   });
 
@@ -93,5 +93,22 @@ describe('noip mcp hardening (review fixes)', () => {
     const ids = new Set(r.findings.map((f) => f.id));
     for (const c of r.controls) for (const id of c.findingIds) expect(ids.has(id)).toBe(true);
     expect(r.provenance.minSeverity).toBe('critical');
+  });
+
+  it('pod_security_readiness, risk_chains and admission_policy', async () => {
+    const c = await connect();
+    const psa = await call(c, 'pod_security_readiness', { demo: true });
+    expect(psa.structuredContent).toMatchObject({ source: 'demo', policyVersion: '1.31' });
+    expect((psa.structuredContent!.namespaces as Array<{ namespace: string; canEnforce: string }>).find((n) => n.namespace === 'shop')!.canEnforce).toBe('restricted');
+    const chains = await call(c, 'risk_chains', { demo: true });
+    expect((chains.structuredContent!.chains as Array<{ severity: string }>)[0]!.severity).toBe('critical');
+    const pol = await call(c, 'admission_policy', { action: 'deny', minSeverity: 'critical' });
+    expect(pol.structuredContent).toMatchObject({ policies: 2 });
+    expect(pol.structuredContent!.yaml).toContain('- Deny');
+    expect((await call(c, 'admission_policy', { checks: ['NOIP-RBAC-001'] })).isError).toBe(true);
+    expect((await call(c, 'pod_security_readiness', { manifests: ['../../etc'] })).isError).toBe(true);
+    expect((await call(c, 'risk_chains', { manifests: ['../../etc'] })).isError).toBe(true);
+    const empty = await call(c, 'pod_security_readiness', { manifests: ['test/fixtures/misconfig/20-bad-rbac.yaml'] });
+    expect(empty.structuredContent).toMatchObject({ policyVersion: null, namespaces: [] });
   });
 });

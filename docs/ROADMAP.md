@@ -98,7 +98,8 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 32 | Independent review #4, with fixes (8 confirmed: metrics single-flight and backoff, YAML-null PSA handling, pod-less namespace fixes, OSCAL accepted risk, two markdown escapes, half-written signed bundles) | shipped (`loop/r32-review4`) |
 | 33 | Risk chains: a running workload carrying a cluster-admin token; default-SA Role inheritance. Deterministic, not scored | shipped (`loop/r33-risk-chains`) |
 | 34 | Performance: risk-chain building was quadratic (65 s on a 10k-pod cluster with broad RBAC; now 0.5 s); three more quadratic groupings made linear; scale test and bench now include RBAC | shipped (`loop/r34-perf`) |
-| 35 | Wrap-up | planned |
+| 35 | MCP tools: `pod_security_readiness`, `risk_chains`, `admission_policy` (all read-only) | shipped (`loop/r35-mcp-tools`) |
+| 36 | Wrap-up | planned |
 
 ## Later
 These are candidates, not commitments:

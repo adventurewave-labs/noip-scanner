@@ -2,6 +2,7 @@ import { realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { NOT_ADMISSION_SHAPED, policyDocuments, renderPolicies } from './policy.js';
 import { z } from 'zod';
 import { ALL_CHECKS } from './checks/index.js';
 import { CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
@@ -139,6 +140,70 @@ export function createMcpServer(opts: McpOptions = {}): McpServer {
           scannedAt: r.provenance.scannedAt,
           mappingDisclaimer: r.mappingDisclaimer,
         });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'pod_security_readiness',
+    {
+      title: 'Pod Security readiness',
+      description:
+        'For each namespace, the highest Pod Security Standard (privileged/baseline/restricted) it could enforce today without rejecting any current pod, ' +
+        'the label it enforces now, and the workloads blocking the next level with reasons. Evaluated with a port of the upstream Pod Security Admission checks.',
+      inputSchema: target,
+      annotations: LIVE_READ_ONLY,
+    },
+    async (t) => {
+      try {
+        const r = await report(t);
+        return json({ source: r.source, scannedAt: r.provenance.scannedAt, ...(r.podSecurity ?? { policyVersion: null, namespaces: [] }) });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'risk_chains',
+    {
+      title: 'Risk chains',
+      description:
+        'Findings that compound into an attack path, e.g. a running workload whose ServiceAccount token is cluster-admin. ' +
+        'Each chain lists steps, entry-point workloads, the findings it is built from, and its caveat. Not scored.',
+      inputSchema: target,
+      annotations: LIVE_READ_ONLY,
+    },
+    async (t) => {
+      try {
+        const r = await report(t);
+        return json({ source: r.source, scannedAt: r.provenance.scannedAt, chains: r.riskChains ?? [] });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'admission_policy',
+    {
+      title: 'Generate admission policies',
+      description:
+        'Return ValidatingAdmissionPolicy YAML (CEL, Kubernetes >= 1.30) mirroring NOIP\'s pod and namespace checks. Only generates text; applying it is a human decision. ' +
+        'Default binding is Warn+Audit (never blocks).',
+      inputSchema: {
+        action: z.enum(['warn', 'audit', 'deny']).optional().describe('Binding action. Default warn (Warn+Audit).'),
+        checks: z.array(z.string()).optional().describe('Only these check IDs (admission-shaped: POD-001..009, NS-001).'),
+        minSeverity: z.enum(SEVERITIES as unknown as [string, ...string[]]).optional().describe('Only checks at or above this severity.'),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ action, checks, minSeverity }) => {
+      try {
+        const opts = { action, checks, minSeverity: minSeverity as Severity | undefined };
+        return json({ yaml: renderPolicies(opts), policies: policyDocuments(opts).length / 2, notAdmissionShaped: NOT_ADMISSION_SHAPED });
       } catch (err) {
         return fail(err);
       }
