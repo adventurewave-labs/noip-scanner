@@ -19,10 +19,11 @@ describe('risk chains', () => {
   it('finds the demo paths: a privileged pod with a cluster-admin token, and a default SA with a Role', () => {
     const r = buildReport(loadDemoSnapshot(), 'demo');
     expect(r.riskChains!.map((c) => [c.severity, c.id])).toEqual([
+      ['critical', 'CHAIN-EXPOSED-HOST-ACCESS:monitoring/node-exporter'],
       ['critical', 'CHAIN-SA-CLUSTER-ADMIN:ci/default:ci-deployer-admin'],
       ['medium', 'CHAIN-DEFAULT-SA-ROLE:payments:payments-reader'],
     ]);
-    const [admin] = r.riskChains!;
+    const admin = r.riskChains!.find((c) => c.id.startsWith('CHAIN-SA-CLUSTER-ADMIN'))!;
     expect(admin!.entryPoints).toEqual(['Pod/ci/debug-shell']);
     expect(admin!.findingIds).toEqual(expect.arrayContaining(['NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin', 'NOIP-POD-001:Pod/ci/debug-shell/shell']));
     expect(admin!.steps[2]).toMatch(/shares host namespaces or privileges \(NOIP-POD-001/);
@@ -62,7 +63,7 @@ describe('risk chains', () => {
     expect(md).not.toMatch(/<img src=x>|\]\(javascript/);
     expect(renderMarkdown(r, 'es')).toContain('## Cadenas de riesgo');
     expect(renderHtml(r)).not.toContain('<img src=x>');
-    expect(renderMetrics(r, { up: true, failures: 0 })).toContain('noip_risk_chains{severity="critical"} 1');
+    expect(renderMetrics(r, { up: true, failures: 0 })).toContain('noip_risk_chains{severity="critical"} 2');
     expect(buildReport(snap(), 'live').riskChains).toBeUndefined();
   });
 });
@@ -121,5 +122,67 @@ describe('ServiceAccount-level token mounting', () => {
     writeFileSync(`${dir}/sa.yaml`, 'apiVersion: v1\nkind: ServiceAccount\nmetadata: {name: builder, namespace: app}\nautomountServiceAccountToken: false\nsecrets: [{name: tok}]\n');
     const snapshot = await loadManifests([dir]);
     expect(snapshot.serviceAccounts).toEqual([{ metadata: { name: 'builder', namespace: 'app' }, automountServiceAccountToken: false }]);
+  });
+});
+
+describe('exposure (Services)', () => {
+  const svc = (name: string, type: string, selector: Record<string, string> | undefined, extra: object = {}) => ({ metadata: { name, namespace: 'app' }, spec: { type, ...(selector ? { selector } : {}), ...extra } }) as never;
+  const hostPod = (name: string, labels: Record<string, string>, patch: (p: V1Pod) => void) => hardenedPod('app', name, (p) => ((p.metadata!.labels = labels), patch(p)));
+  const findings = (r: ReturnType<typeof buildReport>) => r;
+
+  it('flags externally reachable workloads with host access; hostNetwork alone is high', () => {
+    const s = snap({
+      pods: [hostPod('priv', { app: 'a' }, (p) => (p.spec!.containers[0]!.securityContext!.privileged = true)), hostPod('net', { app: 'b' }, (p) => (p.spec!.hostNetwork = true)), hostPod('quiet', { app: 'c' }, () => {})],
+      services: [svc('lb', 'LoadBalancer', { app: 'a' }), svc('np', 'NodePort', { app: 'b' }), svc('ok', 'LoadBalancer', { app: 'c' }), svc('internal', 'ClusterIP', { app: 'a' }), svc('ext', 'ClusterIP', { app: 'b' }, { externalIPs: ['203.0.113.7'] }), svc('headless', 'LoadBalancer', undefined)],
+    });
+    const r = findings(buildReport(s, 'live'));
+    const exp = r.riskChains!.filter((c) => c.id.startsWith('CHAIN-EXPOSED'));
+    expect(exp.map((c) => [c.id, c.severity])).toEqual([
+      ['CHAIN-EXPOSED-HOST-ACCESS:app/lb', 'critical'],
+      ['CHAIN-EXPOSED-HOST-ACCESS:app/ext', 'high'],
+      ['CHAIN-EXPOSED-HOST-ACCESS:app/np', 'high'],
+    ]);
+    expect(exp.find((c) => c.id.endsWith('/ext'))!.title).toMatch(/^ClusterIP with externalIPs Service/);
+    expect(exp[0]!.steps[1]).toMatch(/host processes or devices/);
+  });
+
+  it('notes exposure on a cluster-admin token chain, ignores finished pods and excluded namespaces', () => {
+    const exposed = hostPod('web', { app: 'web' }, () => {});
+    const done = hostPod('old', { app: 'web' }, (p) => ((p.spec!.containers[0]!.securityContext!.privileged = true), (p.status = { phase: 'Failed' })));
+    const s = snap({ pods: [exposed, done], services: [svc('web', 'LoadBalancer', { app: 'web' })], clusterRoleBindings: [crb('x', [{ kind: 'ServiceAccount', name: 'default', namespace: 'app' }])] });
+    const chains = riskChains(s, [], new Set());
+    expect(chains.map((c) => c.id)).toEqual(['CHAIN-SA-CLUSTER-ADMIN:app/default:x']);
+    expect(chains[0]!.steps.at(-1)).toMatch(/Pod\/app\/web is reachable from outside the cluster \(Service app\/web\)/);
+    expect(riskChains(s, [], new Set(['app']))).toEqual([]);
+  });
+
+  it('reads Services from manifests, keeping only type, selector and externalIPs', async () => {
+    const { loadManifests } = await import('../src/manifests.js');
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const dir = mkdtempSync(`${(await import('node:os')).tmpdir()}/noip-svc-`);
+    writeFileSync(`${dir}/s.yaml`, 'apiVersion: v1\nkind: Service\nmetadata: {name: web, namespace: app, annotations: {a: b}}\nspec: {type: NodePort, selector: {app: web}, ports: [{port: 80}]}\n');
+    expect((await loadManifests([dir])).services).toEqual([{ metadata: { name: 'web', namespace: 'app' }, spec: { type: 'NodePort', selector: { app: 'web' } } }]);
+  });
+});
+
+describe('defaults for sparse objects', () => {
+  it('handles objects without namespaces, names, types or subjects', () => {
+    const bare = { metadata: { name: 'p', labels: { app: 'x' } }, spec: { containers: [{ name: 'c', image: 'i', securityContext: { privileged: true } }] } } as V1Pod;
+    const bare2 = { ...bare, metadata: { name: 'q', labels: { app: 'x' } } } as V1Pod;
+    const s = snap({
+      pods: [bare, bare2],
+      services: [{ spec: { selector: { app: 'x' }, externalIPs: ['198.51.100.1'] } } as never],
+      serviceAccounts: [{ metadata: { name: 'default' } } as never],
+      clusterRoleBindings: [
+        { metadata: { name: 'nosubj' }, roleRef: { apiGroup: '', kind: 'ClusterRole', name: 'cluster-admin' } } as never,
+        crb('grp', [{ kind: 'Group', name: 'system:masters' }, { kind: 'ServiceAccount', name: 'default', namespace: 'default' }]),
+      ],
+    });
+    const r = buildReport(s, 'live');
+    const ids = r.riskChains!.map((c) => c.id);
+    expect(ids).toContain('CHAIN-EXPOSED-HOST-ACCESS:default/unknown');
+    const exposed = r.riskChains!.find((c) => c.id.startsWith('CHAIN-EXPOSED'))!;
+    expect(exposed.steps[1]).toMatch(/^Those workloads/);
+    expect(r.riskChains!.find((c) => c.id.startsWith('CHAIN-SA'))!.steps.at(-1)).toMatch(/are reachable from outside the cluster/);
   });
 });

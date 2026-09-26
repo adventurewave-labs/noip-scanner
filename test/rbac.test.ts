@@ -9,7 +9,7 @@ const role = docs.find((d) => d.kind === 'ClusterRole');
 describe('deploy/rbac.yaml', () => {
   it('grants exactly the read access fetchSnapshot needs', () => {
     expect(role.rules).toEqual([
-      { apiGroups: [''], resources: ['namespaces', 'pods', 'nodes', 'serviceaccounts'], verbs: ['get', 'list'] },
+      { apiGroups: [''], resources: ['namespaces', 'pods', 'nodes', 'serviceaccounts', 'services'], verbs: ['get', 'list'] },
       { apiGroups: ['networking.k8s.io'], resources: ['networkpolicies'], verbs: ['get', 'list'] },
       { apiGroups: ['rbac.authorization.k8s.io'], resources: ['clusterrolebindings', 'rolebindings'], verbs: ['get', 'list'] },
     ]);

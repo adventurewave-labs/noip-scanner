@@ -1,4 +1,4 @@
-import type { V1ClusterRoleBinding, V1Namespace, V1NetworkPolicy, V1Pod, V1RoleBinding, V1ServiceAccount } from '@kubernetes/client-node';
+import type { V1ClusterRoleBinding, V1Namespace, V1NetworkPolicy, V1Pod, V1RoleBinding, V1Service, V1ServiceAccount } from '@kubernetes/client-node';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 export const SEVERITIES: readonly Severity[] = ['critical', 'high', 'medium', 'low'];
@@ -21,6 +21,8 @@ export interface ClusterSnapshot {
    * Absent when the source didn't provide them (older snapshots); risk chains then state that caveat.
    */
   serviceAccounts?: V1ServiceAccount[];
+  /** Services (name, namespace, type, selector, externalIPs only) for exposure analysis in risk chains. */
+  services?: V1Service[];
   /** Manifest scans only: `Kind/namespace/name` (or `Kind/name`) -> where it was declared. */
   sources?: Record<string, { file: string; line?: number }>;
 }

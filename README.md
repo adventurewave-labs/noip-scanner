@@ -91,14 +91,15 @@ Reports include `provenance.cluster.versionSupport`: whether the control-plane m
 
 ## Risk chains
 
-Some findings compound. Reports include a `riskChains` section for two paths NOIP can prove from what it already reads:
+Some findings compound. Reports include a `riskChains` section for three paths NOIP can prove from what it already reads:
 
 - **A running workload carries a cluster-admin token.** A ServiceAccount is bound to the `cluster-admin` ClusterRole, and workloads run as it with the token mounted. The binding can name the SA directly, in User form (`system:serviceaccount:<ns>:<name>`), or through `system:serviceaccounts[:<ns>]` or `system:authenticated`. The severity is critical, and the chain notes when one of those workloads also shares host namespaces or privileges (POD-001, POD-002 or POD-004). Only the literal `cluster-admin` role counts; aggregated or custom equivalents aren't detected.
+- **An exposed workload shares host namespaces or privileges.** A `LoadBalancer` or `NodePort` Service, or one with `externalIPs`, selects a running workload with POD-001, POD-002 or POD-004. The severity is critical, or high when the only host access is hostNetwork. Only Services and label selectors are considered; Ingress, Gateway and NetworkPolicy reachability are not. If a workload in the cluster-admin chain is exposed this way, that chain says so too.
 - **A default ServiceAccount has a role.** Every workload that doesn't name its own ServiceAccount, including future ones, inherits it. The grant can come from another namespace. The severity is medium, or high when the role is the built-in `cluster-admin`, `admin` or `edit` ClusterRole.
 
 Each chain lists its entry points and the findings it is built from. Chains don't change the score. They appear in the markdown and HTML reports and as `noip_risk_chains{severity}` in `/api/metrics`. The chain descriptions are English in Spanish reports too, like evidence. Token mounting follows Kubernetes: the pod's `automountServiceAccountToken` if set, otherwise the ServiceAccount's, otherwise true. The deprecated `serviceAccount` field is honoured, and finished pods (Succeeded or Failed) are ignored. A token mounted explicitly through a projected volume isn't detected. Chains follow `--min-severity` like findings do. Live scans list ServiceAccounts (keeping only name, namespace and that flag). When a ServiceAccount isn't in the input, as in a manifest scan that doesn't include it, the chain says the SA-level setting couldn't be checked.
 
-**Upgrading.** From round 36 on, live scans also list ServiceAccounts. Re-apply `deploy/rbac.yaml` before upgrading; otherwise the old `noip-reader` role gets a 403, and every live scan stops with `K8sUnavailable` (exit 3) rather than silently skipping the data.
+**Upgrading.** From round 36 on, live scans also list ServiceAccounts, and from round 43 on, Services. Re-apply `deploy/rbac.yaml` before upgrading; otherwise the old `noip-reader` role gets a 403, and every live scan stops with `K8sUnavailable` (exit 3) rather than silently skipping the data.
 
 ## Pod Security readiness
 

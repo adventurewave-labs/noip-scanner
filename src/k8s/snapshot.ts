@@ -4,6 +4,7 @@ import {
   RbacAuthorizationV1Api,
   VersionApi,
   type KubeConfig,
+  type V1Service,
 } from '@kubernetes/client-node';
 import { K8sUnavailable } from '../errors.js';
 import type { ClusterSnapshot } from '../types.js';
@@ -80,7 +81,7 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
   const rbac = kc.makeApiClient(RbacAuthorizationV1Api);
   const version = kc.makeApiClient(VersionApi);
 
-  const [v, nodes, namespaces, pods, netpols, crbs, rbs, sas] = await Promise.all([
+  const [v, nodes, namespaces, pods, netpols, crbs, rbs, sas, svcs] = await Promise.all([
     call('GET /version', version.getCode(), timeoutMs),
     listAll('list nodes', (p) => core.listNode(p), timeoutMs),
     listAll('list namespaces', (p) => core.listNamespace(p), timeoutMs),
@@ -89,6 +90,7 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
     listAll('list clusterrolebindings', (p) => rbac.listClusterRoleBinding(p), timeoutMs),
     listAll('list rolebindings', (p) => rbac.listRoleBindingForAllNamespaces(p), timeoutMs),
     listAll('list serviceaccounts', (p) => core.listServiceAccountForAllNamespaces(p), timeoutMs),
+    listAll('list services', (p) => core.listServiceForAllNamespaces(p), timeoutMs),
   ]);
 
   return {
@@ -102,8 +104,15 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
     roleBindings: rbs,
     // Keep only what risk chains use: never token references or image pull secret names.
     serviceAccounts: sas.map((s) => ({ metadata: { name: s.metadata?.name, namespace: s.metadata?.namespace }, automountServiceAccountToken: s.automountServiceAccountToken })),
+    services: svcs.map(minimalService),
   };
 }
+
+/** Keep only what exposure analysis needs. */
+export const minimalService = (s: V1Service): V1Service => ({
+  metadata: { name: s.metadata?.name, namespace: s.metadata?.namespace },
+  spec: { type: s.spec?.type, selector: s.spec?.selector, ...(s.spec?.externalIPs?.length ? { externalIPs: s.spec.externalIPs } : {}) },
+});
 
 /** Cheap reachability probe for /health: one GET /version. */
 export async function probeVersion(kc: KubeConfig, timeoutMs = 3000): Promise<string> {

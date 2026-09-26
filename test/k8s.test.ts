@@ -69,6 +69,7 @@ describe('fetchSnapshot', () => {
           listNode: list([{}, {}]),
           listNamespace: list([{ metadata: { name: 'a' } }]),
           listPodForAllNamespaces: list([]),
+          listServiceForAllNamespaces: list([{ metadata: { name: 'web', namespace: 'a', annotations: { secret: 'x' } }, spec: { type: 'LoadBalancer', selector: { app: 'web' }, ports: [{ port: 80 }], clusterIP: '10.0.0.1' } }]),
           listServiceAccountForAllNamespaces: list([{ metadata: { name: 'default', namespace: 'a', uid: 'u' }, automountServiceAccountToken: false, secrets: [{ name: 'default-token-x' }], imagePullSecrets: [{ name: 'regcred' }] }]),
         },
       ],
@@ -81,6 +82,7 @@ describe('fetchSnapshot', () => {
     expect(s).toMatchObject({ serverVersion: { gitVersion: 'v1.31.2', platform: 'linux/arm64' }, context: 'ctx-a', nodeCount: 2 });
     expect(s.namespaces).toHaveLength(1);
     // only name, namespace and the automount flag are kept: no token or pull-secret references
+    expect(s.services).toEqual([{ metadata: { name: 'web', namespace: 'a' }, spec: { type: 'LoadBalancer', selector: { app: 'web' } } }]);
     expect(s.serviceAccounts).toEqual([{ metadata: { name: 'default', namespace: 'a' }, automountServiceAccountToken: false }]);
     expect(await probeVersion(fakeKc(ok()))).toBe('v1.31.2');
   });

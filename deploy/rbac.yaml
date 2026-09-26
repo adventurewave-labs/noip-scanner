@@ -17,7 +17,7 @@ metadata:
   name: noip-reader
 rules:
   - apiGroups: [""]
-    resources: [namespaces, pods, nodes, serviceaccounts]
+    resources: [namespaces, pods, nodes, serviceaccounts, services]
     verbs: [get, list]
   - apiGroups: [networking.k8s.io]
     resources: [networkpolicies]

@@ -283,7 +283,11 @@
             "apiVersion": "apps/v1",
             "uid": "00000000-0000-0000-0000-000000000000"
           }
-        ]
+        ],
+        "labels": {
+          "app": "node-exporter",
+          "controller-revision-hash": "7c9b8d6f5"
+        }
       },
       "spec": {
         "hostNetwork": true,
@@ -321,7 +325,11 @@
             "apiVersion": "apps/v1",
             "uid": "00000000-0000-0000-0000-000000000000"
           }
-        ]
+        ],
+        "labels": {
+          "app": "node-exporter",
+          "controller-revision-hash": "7c9b8d6f5"
+        }
       },
       "spec": {
         "hostNetwork": true,
@@ -359,7 +367,11 @@
             "apiVersion": "apps/v1",
             "uid": "00000000-0000-0000-0000-000000000000"
           }
-        ]
+        ],
+        "labels": {
+          "app": "node-exporter",
+          "controller-revision-hash": "7c9b8d6f5"
+        }
       },
       "spec": {
         "hostNetwork": true,
@@ -570,6 +582,44 @@
       "metadata": {
         "name": "node-exporter",
         "namespace": "monitoring"
+      }
+    }
+  ],
+  "services": [
+    {
+      "metadata": {
+        "name": "frontend",
+        "namespace": "shop"
+      },
+      "spec": {
+        "type": "LoadBalancer",
+        "selector": {
+          "app": "frontend"
+        }
+      }
+    },
+    {
+      "metadata": {
+        "name": "node-exporter",
+        "namespace": "monitoring"
+      },
+      "spec": {
+        "type": "NodePort",
+        "selector": {
+          "app": "node-exporter"
+        }
+      }
+    },
+    {
+      "metadata": {
+        "name": "api",
+        "namespace": "payments"
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": {
+          "app": "api"
+        }
       }
     }
   ]

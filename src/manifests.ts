@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { minimalService } from './k8s/snapshot.js';
 import { stripNulls } from './psa.js';
 import { extname, join, relative } from 'node:path';
 import type {
@@ -9,6 +10,7 @@ import type {
   V1Pod,
   V1PodTemplateSpec,
   V1RoleBinding,
+  V1Service,
   V1ServiceAccount,
 } from '@kubernetes/client-node';
 import { isMap, isSeq, LineCounter, parseAllDocuments, type Node as YamlNode } from 'yaml';
@@ -139,6 +141,7 @@ export async function loadManifests(paths: string[], readStdin: () => Promise<st
       else if (kind === 'NetworkPolicy') snap.networkPolicies.push({ ...(obj as V1NetworkPolicy), metadata: { ...meta, namespace: ns } });
       else if (kind === 'ClusterRoleBinding') snap.clusterRoleBindings.push(obj as V1ClusterRoleBinding);
       else if (kind === 'RoleBinding') snap.roleBindings.push({ ...(obj as V1RoleBinding), metadata: { ...meta, namespace: ns } });
+      else if (kind === 'Service') (snap.services ??= []).push(minimalService({ ...(obj as V1Service), metadata: { ...meta, namespace: ns } }));
       else if (kind === 'ServiceAccount') {
         const sa = obj as V1ServiceAccount;
         (snap.serviceAccounts ??= []).push({ metadata: { name: meta.name, namespace: ns }, automountServiceAccountToken: sa.automountServiceAccountToken });

@@ -71,6 +71,31 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
   const findingsOn = (workload: string) => byWorkload.get(workload) ?? [];
   const rbacFinding = (kind: string, name: string, ns?: string) => byBinding.get(resourceKey({ kind, namespace: ns, name })) ?? [];
 
+  // Externally reachable Services -> the workloads their selectors match (in scope, running).
+  const EXTERNAL = new Set(['LoadBalancer', 'NodePort']);
+  const exposure = new Map<string, Set<string>>();
+  const serviceType = new Map<string, string>();
+  const exposedBy = new Map<string, string>(); // workload -> first exposing service
+  for (const svc of snapshot.services ?? []) {
+    const type = svc.spec?.type ?? 'ClusterIP';
+    const selector = svc.spec?.selector ?? {};
+    if ((!EXTERNAL.has(type) && !svc.spec?.externalIPs?.length) || !Object.keys(selector).length) continue;
+    const ns = svc.metadata?.namespace ?? 'default';
+    const key = `${ns}/${svc.metadata?.name ?? 'unknown'}`;
+    serviceType.set(key, svc.spec?.externalIPs?.length && !EXTERNAL.has(type) ? `${type} with externalIPs` : type);
+    const hits = new Set<string>();
+    for (const p of snapshot.pods) {
+      if ((p.metadata?.namespace ?? 'default') !== ns || !running(p)) continue;
+      const labels = p.metadata?.labels ?? {};
+      if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
+        const w = resourceKey(workloadOf(p));
+        hits.add(w);
+        if (!exposedBy.has(w)) exposedBy.set(w, key);
+      }
+    }
+    if (hits.size) exposure.set(key, hits);
+  }
+
   const chains: RiskChain[] = [];
   // 1. A running workload carries a token that is cluster-admin.
   for (const b of snapshot.clusterRoleBindings) {
@@ -90,6 +115,10 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
           hostAccess.length
             ? `At least one of them also shares host namespaces or privileges (${[...new Set(hostAccess.map((f) => f.checkId))].join(', ')}), widening what a compromise of it reaches on the node.`
             : 'Code execution in any of them (a vulnerable dependency, an exposed debug endpoint) is enough to control the whole cluster.',
+          ...(() => {
+            const ex = entries.filter((w) => exposedBy.has(w));
+            return ex.length ? [`${ex.join(', ')} ${ex.length === 1 ? 'is' : 'are'} reachable from outside the cluster (Service ${exposedBy.get(ex[0]!)}), so the first step needs no foothold.`] : [];
+          })(),
         ],
         entryPoints: entries,
         findingIds: [...new Set([...rbacFinding('ClusterRoleBinding', binding), ...hostAccess.map((f) => f.id)])].sort(),
@@ -124,6 +153,28 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
         caveat: caveat(sa),
       });
     }
+  }
+  // 3. A workload with host namespaces or privileges is reachable from outside the cluster through a Service.
+  for (const [svc, exposed] of exposure) {
+    const [ns] = svc.split('/') as [string, string];
+    if (excluded.has(ns)) continue;
+    const risky = [...exposed].filter((w) => findingsOn(w).some((f) => HOST_ACCESS.has(f.checkId))).sort();
+    if (!risky.length) continue;
+    const found = risky.flatMap((w) => findingsOn(w).filter((f) => HOST_ACCESS.has(f.checkId)));
+    const checks = [...new Set(found.map((f) => f.checkId))].sort();
+    const severe = checks.some((c) => c !== 'NOIP-POD-004'); // privileged or hostPID, not only hostNetwork
+    chains.push({
+      id: `CHAIN-EXPOSED-HOST-ACCESS:${svc}`,
+      severity: severe ? 'critical' : 'high',
+      title: `${serviceType.get(svc)} Service ${svc} exposes workloads that share host namespaces or privileges`,
+      steps: [
+        `Service ${svc} (type ${serviceType.get(svc)}) is reachable from outside the cluster and selects ${risky.join(', ')}.`,
+        `${risky.length === 1 ? 'That workload' : 'Those workloads'} ${severe ? 'can reach host processes or devices' : "share the node's network namespace"} (${checks.join(', ')}), so a remote exploit of the exposed port lands with host-level reach.`,
+      ],
+      entryPoints: risky,
+      findingIds: [...new Set(found.map((f) => f.id))].sort(),
+      caveat: 'Exposure is judged from Service type (LoadBalancer, NodePort) or externalIPs and label selectors; Ingress, Gateway and NetworkPolicy reachability are not evaluated.',
+    });
   }
   const rank: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   return chains.sort((a, b) => rank[a.severity] - rank[b.severity] || a.id.localeCompare(b.id));

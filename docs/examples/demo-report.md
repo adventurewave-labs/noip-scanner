@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T21:39:53.564Z |
+| Scanned at | 2026-09-26T22:33:59.160Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `b9b5a88f344f` |
+| Scanner | noip 0.1.0 @ `92ed6c1532aa` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
@@ -279,11 +279,20 @@ _SOC 2, HIPAA, NSA/CISA and NIST SP 800-190 identifiers are reference mappings, 
 
 _Findings that compound: together they give an attacker more than each does alone. Derived from what NOIP already reads; not part of the score._
 
+### critical: NodePort Service monitoring/node-exporter exposes workloads that share host namespaces or privileges
+
+1. Service monitoring/node-exporter (type NodePort) is reachable from outside the cluster and selects DaemonSet/monitoring/node-exporter.
+2. That workload can reach host processes or devices (NOIP-POD-002, NOIP-POD-004), so a remote exploit of the exposed port lands with host-level reach.
+
+Findings: `NOIP-POD-002:DaemonSet/monitoring/node-exporter`, `NOIP-POD-004:DaemonSet/monitoring/node-exporter`
+
+> Exposure is judged from Service type (LoadBalancer, NodePort) or externalIPs and label selectors; Ingress, Gateway and NetworkPolicy reachability are not evaluated.
+
 ### critical: Workloads running as ci/default carry a cluster-admin token
 
 1. 1 workload(s) run as ServiceAccount ci/default with its token mounted (Pod/ci/debug-shell).
 2. ClusterRoleBinding ci-deployer-admin grants that ServiceAccount cluster-admin.
-3. At least one of them also has host-level access (NOIP-POD-001), so the node itself is exposed as well.
+3. At least one of them also shares host namespaces or privileges (NOIP-POD-001), widening what a compromise of it reaches on the node.
 
 Findings: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin`
 
@@ -291,8 +300,8 @@ Findings: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBin
 
 ### medium: Every workload in payments without its own ServiceAccount inherits Role config-reader
 
-1. RoleBinding payments/payments-reader grants Role config-reader to ServiceAccount payments/default.
-2. 1 workload(s) run as payments/default with its token mounted (Deployment/payments/api), so each of them holds those permissions, and so will any new workload that doesn't name a ServiceAccount.
+1. RoleBinding payments/payments-reader grants Role config-reader in namespace payments to ServiceAccount payments/default.
+2. 1 workload(s) run as payments/default with its token mounted (Deployment/payments/api), so each of them holds those permissions, and so will any new workload in payments that doesn't name a ServiceAccount.
 
 Findings: `NOIP-RBAC-003:RoleBinding/payments/payments-reader`
 

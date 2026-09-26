@@ -40,12 +40,12 @@ describe('review 5', () => {
 
   it('--min-severity applies to chains, and chains list only findings present in the report (#3)', () => {
     const r = buildReport(loadDemoSnapshot(), 'demo', { minSeverity: 'critical' });
-    expect(r.riskChains!.map((c) => c.severity)).toEqual(['critical']);
+    expect(r.riskChains!.map((c) => c.severity)).toEqual(['critical', 'critical']);
     const ids = new Set(r.findings.map((f) => f.id));
     for (const c of r.riskChains!) for (const id of c.findingIds) expect(ids.has(id)).toBe(true);
     // chain text doesn't change with the filter: built from every finding
     const full = buildReport(loadDemoSnapshot(), 'demo');
-    expect(r.riskChains![0]!.steps).toEqual(full.riskChains![0]!.steps);
+    expect(r.riskChains!.map((c) => c.steps)).toEqual(full.riskChains!.filter((c) => c.severity === 'critical').map((c) => c.steps));
   });
 
   it('matches ServiceAccounts named in User form (#4)', () => {
