@@ -100,7 +100,8 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 34 | Performance: risk-chain building was quadratic (65 s on a 10k-pod cluster with broad RBAC; now 0.5 s); three more quadratic groupings made linear; scale test and bench now include RBAC | shipped (`loop/r34-perf`) |
 | 35 | MCP tools: `pod_security_readiness`, `risk_chains`, `admission_policy` (all read-only) | shipped (`loop/r35-mcp-tools`) |
 | 36 | ServiceAccounts in the snapshot (name, namespace, automount only; RBAC gains `serviceaccounts` get/list): risk chains honour SA-level automount | shipped (`loop/r36-serviceaccounts`) |
-| 37 | Wrap-up | planned |
+| 37 | Independent review #5, with fixes: deprecated `serviceAccount` field, `noip fix` quadratic on large files, chains honour `--min-severity`, User-form SA subjects, cross-namespace default-SA grants, broad roles rated high, finished pods ignored, upgrade note | shipped (`loop/r37-review5`) |
+| 38 | Wrap-up | planned |
 
 ## Later
 These are candidates, not commitments:

@@ -27,12 +27,17 @@ const CAVEAT_UNKNOWN_SA = 'The ServiceAccount object was not in the scanned inpu
 const CAVEAT_NONE = 'Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).';
 const HOST_ACCESS = new Set(['NOIP-POD-001', 'NOIP-POD-002', 'NOIP-POD-004']);
 
-const saOf = (p: V1Pod) => `${p.metadata?.namespace ?? 'default'}/${p.spec?.serviceAccountName || 'default'}`;
+/** The deprecated `serviceAccount` field is honoured too, as the API server does (manifest scans see it raw). */
+const saOf = (p: V1Pod) => `${p.metadata?.namespace ?? 'default'}/${p.spec?.serviceAccountName || p.spec?.serviceAccount || 'default'}`;
+/** Finished pods (Job pods that Succeeded/Failed) no longer run anything. */
+const running = (p: V1Pod) => p.status?.phase !== 'Succeeded' && p.status?.phase !== 'Failed';
 
 /** Does an RBAC subject cover the ServiceAccount `ns/name`? Includes the service-account groups. */
 function covers(s: V1Subject, sa: string, bindingNs?: string): boolean {
   const [ns, name] = sa.split('/') as [string, string];
   if (s.kind === 'ServiceAccount') return s.name === name && (s.namespace ?? bindingNs) === ns;
+  // Kubernetes authenticates a ServiceAccount as the user system:serviceaccount:<ns>:<name>.
+  if (s.kind === 'User') return s.name === `system:serviceaccount:${ns}:${name}`;
   if (s.kind === 'Group') return s.name === 'system:serviceaccounts' || s.name === `system:serviceaccounts:${ns}` || s.name === 'system:authenticated';
   return false;
 }
@@ -42,7 +47,7 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
   // Kubernetes: the pod's automountServiceAccountToken wins; otherwise the ServiceAccount's; otherwise true.
   const tokenMounted = (p: V1Pod) => (p.spec?.automountServiceAccountToken ?? saAutomount.get(saOf(p)) ?? true) !== false;
   const caveat = (sa: string) => (saAutomount.has(sa) ? CAVEAT_NONE : CAVEAT_UNKNOWN_SA);
-  const pods = snapshot.pods.filter((p) => !excluded.has(p.metadata?.namespace ?? 'default') && tokenMounted(p));
+  const pods = snapshot.pods.filter((p) => !excluded.has(p.metadata?.namespace ?? 'default') && running(p) && tokenMounted(p));
   // One entry per workload (replicas collapse), keyed by the ServiceAccount whose token it carries.
   const bySa = new Map<string, Map<string, V1Pod>>();
   for (const p of pods) {
@@ -83,7 +88,7 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
           `${entries.length} workload(s) run as ServiceAccount ${sa} with its token mounted (${entries.slice(0, 3).join(', ')}${entries.length > 3 ? ', …' : ''}).`,
           `ClusterRoleBinding ${binding} grants that ServiceAccount cluster-admin.`,
           hostAccess.length
-            ? `At least one of them also has host-level access (${[...new Set(hostAccess.map((f) => f.checkId))].join(', ')}), so the node itself is exposed as well.`
+            ? `At least one of them also shares host namespaces or privileges (${[...new Set(hostAccess.map((f) => f.checkId))].join(', ')}), widening what a compromise of it reaches on the node.`
             : 'Code execution in any of them (a vulnerable dependency, an exposed debug endpoint) is enough to control the whole cluster.',
         ],
         entryPoints: entries,
@@ -92,27 +97,33 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
       });
     }
   }
-  // 2. The namespace's default ServiceAccount has a Role, and workloads without their own ServiceAccount inherit it.
+  // 2. A default ServiceAccount has a Role (or ClusterRole via a RoleBinding), and workloads without their own
+  //    ServiceAccount inherit it. The subject may be another namespace's default SA (a cross-namespace grant).
+  const BROAD = new Set(['cluster-admin', 'admin', 'edit']);
   for (const b of snapshot.roleBindings) {
     const ns = b.metadata?.namespace ?? 'default';
     if (excluded.has(ns)) continue;
-    const sa = `${ns}/default`;
-    const workloads = bySa.get(sa);
-    if (!workloads?.size || !(b.subjects ?? []).some((s) => s.kind === 'ServiceAccount' && covers(s, sa, ns))) continue;
-    const entries = [...workloads.keys()].sort();
     const binding = b.metadata?.name ?? 'unknown';
-    chains.push({
-      id: `CHAIN-DEFAULT-SA-ROLE:${ns}:${binding}`,
-      severity: 'medium',
-      title: `Every workload in ${ns} without its own ServiceAccount inherits ${b.roleRef.kind} ${b.roleRef.name}`,
-      steps: [
-        `RoleBinding ${ns}/${binding} grants ${b.roleRef.kind} ${b.roleRef.name} to ServiceAccount ${sa}.`,
-        `${entries.length} workload(s) run as ${sa} with its token mounted (${entries.slice(0, 3).join(', ')}${entries.length > 3 ? ', …' : ''}), so each of them holds those permissions, and so will any new workload that doesn't name a ServiceAccount.`,
-      ],
-      entryPoints: entries,
-      findingIds: rbacFinding('RoleBinding', binding, ns),
-      caveat: caveat(sa),
-    });
+    const sas = [...new Set((b.subjects ?? []).filter((s) => s.kind === 'ServiceAccount' && s.name === 'default').map((s) => `${s.namespace ?? ns}/default`))];
+    for (const sa of sas.sort()) {
+      const workloads = bySa.get(sa);
+      if (!workloads?.size) continue;
+      const entries = [...workloads.keys()].sort();
+      const saNs = sa.split('/')[0]!;
+      const broad = b.roleRef.kind === 'ClusterRole' && BROAD.has(b.roleRef.name);
+      chains.push({
+        id: `CHAIN-DEFAULT-SA-ROLE:${ns}:${binding}${saNs === ns ? '' : `:${saNs}`}`,
+        severity: broad ? 'high' : 'medium',
+        title: `Every workload in ${saNs} without its own ServiceAccount inherits ${b.roleRef.kind} ${b.roleRef.name}${saNs === ns ? '' : ` in namespace ${ns}`}`,
+        steps: [
+          `RoleBinding ${ns}/${binding} grants ${b.roleRef.kind} ${b.roleRef.name} in namespace ${ns} to ServiceAccount ${sa}${broad ? ` (${b.roleRef.name} is a broad built-in role)` : ''}.`,
+          `${entries.length} workload(s) run as ${sa} with its token mounted (${entries.slice(0, 3).join(', ')}${entries.length > 3 ? ', …' : ''}), so each of them holds those permissions, and so will any new workload in ${saNs} that doesn't name a ServiceAccount.`,
+        ],
+        entryPoints: entries,
+        findingIds: rbacFinding('RoleBinding', binding, ns),
+        caveat: caveat(sa),
+      });
+    }
   }
   const rank: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   return chains.sort((a, b) => rank[a.severity] - rank[b.severity] || a.id.localeCompare(b.id));

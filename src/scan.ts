@@ -105,7 +105,12 @@ export function buildReport(
   const failedWeight = checks.filter((c) => failedChecks.has(c.id)).reduce((sum, c) => sum + SEVERITY_WEIGHT[c.severity], 0);
   const score = totalWeight ? Math.round((100 * (totalWeight - failedWeight)) / totalWeight) : 100;
   const bySeverity = Object.fromEntries(SEVERITIES.map((s) => [s, findings.filter((f) => f.severity === s).length])) as Record<Severity, number>;
-  const chains = riskChains(snapshot, findings, ctx.excludedNamespaces);
+  // Chains describe facts, so they are built from every finding (before the severity floor and suppressions),
+  // then held to the same floor as findings; their finding lists only reference IDs present in this report.
+  const inReport = new Set([...findings.map((f) => f.id), ...(sup?.suppressed ?? []).map((x) => x.finding.id)]);
+  const chains = riskChains(snapshot, [...byId.values()], ctx.excludedNamespaces)
+    .filter((c) => sevRank(c.severity) <= floor)
+    .map((c) => ({ ...c, findingIds: c.findingIds.filter((id) => inReport.has(id)) }));
   const info = scannerInfo();
   const support = versionSupport(snapshot.serverVersion.gitVersion, opts.now);
 

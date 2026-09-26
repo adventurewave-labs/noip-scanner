@@ -25,7 +25,7 @@ describe('risk chains', () => {
     const [admin] = r.riskChains!;
     expect(admin!.entryPoints).toEqual(['Pod/ci/debug-shell']);
     expect(admin!.findingIds).toEqual(expect.arrayContaining(['NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin', 'NOIP-POD-001:Pod/ci/debug-shell/shell']));
-    expect(admin!.steps[2]).toMatch(/host-level access \(NOIP-POD-001/);
+    expect(admin!.steps[2]).toMatch(/shares host namespaces or privileges \(NOIP-POD-001/);
   });
 
   it('covers service-account groups, collapses replicas, and honours automount=false and excluded namespaces', () => {

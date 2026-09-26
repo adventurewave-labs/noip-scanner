@@ -29,14 +29,17 @@ function objectKey(o: { kind?: string; metadata?: { name?: string; namespace?: s
 }
 
 /** Find where an object lives inside a document (top level, or items[i] of a List). */
-function locate(doc: Document, key: string): Array<string | number> | undefined {
-  const js = doc.toJS() as { kind?: string; items?: Array<{ kind?: string; metadata?: { name?: string; namespace?: string } }> } | null;
-  if (!js) return undefined;
-  if (Array.isArray(js.items) && isMap(doc.contents) && isSeq(doc.contents.get('items', true))) {
-    const i = js.items.findIndex((it) => objectKey(it) === key);
-    return i >= 0 ? ['items', i] : undefined;
+/** Index every object in a file once: key -> (document, path to the object). First declaration wins. */
+function indexDocs(list: Document[]): Map<string, { doc: Document; base: Array<string | number> }> {
+  const index = new Map<string, { doc: Document; base: Array<string | number> }>();
+  const put = (key: string, v: { doc: Document; base: Array<string | number> }) => void (index.has(key) || index.set(key, v));
+  for (const doc of list) {
+    const js = doc.toJS() as { kind?: string; items?: Array<{ kind?: string; metadata?: { name?: string; namespace?: string } }> } | null;
+    if (!js) continue;
+    if (Array.isArray(js.items) && isMap(doc.contents) && isSeq(doc.contents.get('items', true))) js.items.forEach((it, i) => it && put(objectKey(it), { doc, base: ['items', i] }));
+    else put(objectKey(js as never), { doc, base: [] });
   }
-  return objectKey(js as never) === key ? [] : undefined;
+  return index;
 }
 
 function apply(doc: Document, base: Array<string | number>, op: PatchOp): void {
@@ -76,15 +79,16 @@ export async function fixManifests(paths: string[], opts: ScanOptions & { outDir
     // Follow the file's own flow-collection style (`{ a: 1 }` vs `{a: 1}`) to keep diffs minimal.
     const padded = /[{[] \S/.test(src);
     const list = Array.isArray(docs) ? docs : [docs];
+    const index = indexDocs(list); // one pass per file: lookups stay O(1) for files with thousands of objects
     for (const f of findings) {
       const key = [f.resource.kind, f.resource.namespace, f.resource.name].filter(Boolean).join('/');
-      const hit = list.map((doc) => ({ doc, base: locate(doc, key) })).find((x) => x.base);
+      const hit = index.get(key);
       if (!hit) {
         // e.g. generateName objects: never drop a finding silently.
         advisory.push(f);
         continue;
       }
-      for (const op of f.fix!.patch) apply(hit.doc, hit.base!, op);
+      for (const op of f.fix!.patch) apply(hit.doc, hit.base, op);
       result.applied.push({ findingId: f.id, file, description: f.fix!.description });
     }
     // Mirror the path relative to `cwd`; files outside it keep only their in-tree tail.
