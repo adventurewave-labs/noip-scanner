@@ -165,6 +165,9 @@ Findings are matched by their stable ID. The diff reports:
 - changed evidence (same finding, different field or value)
 - newly suppressed findings (accepted risk, so these don't count as resolved)
 - control pass/fail changes, check-set changes and the score delta
+- new and resolved risk chains, namespaces whose achievable Pod Security level changed, and images added or removed
+
+`--fail-on` trips on a new finding **or** a new risk chain at or above the given severity. Reports from before these sections existed have none, so everything in the newer report shows as new. All values from the report files are escaped, because a report file is untrusted input.
 
 It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
 

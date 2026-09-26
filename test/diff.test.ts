@@ -76,3 +76,37 @@ describe('noip diff with suppressions on both sides', () => {
     expect(renderDiffMarkdown(diffReports(a, b))).toContain('Added: NOIP-POD-010 · Removed: —');
   });
 });
+
+describe('noip diff: chains, Pod Security readiness, images', () => {
+  it('reports new/resolved chains, readiness changes and image changes; a new chain counts as a regression', () => {
+    const a = before();
+    const s = loadDemoSnapshot();
+    // payments drops its default-SA RoleBinding (chain resolved); ci's debug shell is removed (critical chain resolved,
+    // ci readiness changes); a new image appears.
+    s.roleBindings = [];
+    s.pods = s.pods.filter((p) => p.metadata?.name !== 'debug-shell');
+    s.pods.push({ metadata: { name: 'new', namespace: 'shop' }, spec: { securityContext: { runAsNonRoot: true, seccompProfile: { type: 'RuntimeDefault' } }, containers: [{ name: 'c', image: 'ghcr.io/acme/new:1', securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ['ALL'] } } }] } });
+    const b = buildReport(s, 'demo', { now: T1 });
+    const d = diffReports(a, b);
+    expect(d.chains.resolved.map((c) => c.severity).sort()).toEqual(['critical', 'medium']);
+    expect(d.chains.new).toEqual([]);
+    expect(d.images.added).toEqual(['ghcr.io/acme/new:1']);
+    expect(d.podSecurity).toEqual(expect.arrayContaining([{ namespace: 'ci', from: 'privileged', to: 'restricted' }]));
+    const back = diffReports(b, a);
+    expect(back.chains.new.map((c) => c.severity)).toContain('critical');
+    expect(regressed({ ...back, new: [] }, 'critical')).toBe(true); // the chain alone trips the gate
+    const md = renderDiffMarkdown(d);
+    expect(md).toContain('## Risk chains');
+    expect(md).toContain('## Pod Security readiness changes');
+    expect(md).toContain('## Images');
+  });
+
+  it('escapes every value from untrusted report files', () => {
+    const a = before();
+    const b = before();
+    b.findings[0] = { ...b.findings[0]!, id: 'X`<img src=x>`', evidence: '<script>alert(1)</script> | [x](javascript:1)' };
+    b.provenance.cluster.context = '<b>ctx</b>';
+    const md = renderDiffMarkdown(diffReports(a, b));
+    expect(md).not.toMatch(/<script>|<b>ctx|\]\(javascript/);
+  });
+});

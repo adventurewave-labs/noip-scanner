@@ -102,7 +102,8 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 36 | ServiceAccounts in the snapshot (name, namespace, automount only; RBAC gains `serviceaccounts` get/list): risk chains honour SA-level automount | shipped (`loop/r36-serviceaccounts`) |
 | 37 | Independent review #5, with fixes: deprecated `serviceAccount` field, `noip fix` quadratic on large files, chains honour `--min-severity`, User-form SA subjects, cross-namespace default-SA grants, broad roles rated high, finished pods ignored, upgrade note | shipped (`loop/r37-review5`) |
 | 38 | KBOM: CycloneDX 1.6 bill of materials (cluster platform + container images, purl/hash for digest-pinned images); report `inventory`; in bundles | shipped (`loop/r38-kbom`) |
-| 39 | Wrap-up | planned |
+| 39 | `noip diff` covers risk chains, Pod Security readiness and images; `--fail-on` counts new chains; every value from report files escaped (pre-existing gap in the diff renderer) | shipped (`loop/r39-diff-context`) |
+| 40 | Wrap-up | planned |
 
 ## Later
 These are candidates, not commitments:

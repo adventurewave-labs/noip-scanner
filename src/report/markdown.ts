@@ -11,7 +11,7 @@ export const mdSafe = (s: string) =>
   s.replace(/\s+/g, ' ').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\]\(/g, ']\\(').replace(/\|/g, '\\|');
 const esc = mdSafe;
 /** Inline code that can't be broken out of: fence longer than any backtick run inside. */
-const code = (s: string) => {
+export const code = (s: string) => {
   const t = s.replace(/\s+/g, ' ');
   const run = Math.max(0, ...(t.match(/`+/g) ?? []).map((m) => m.length));
   const fence = '`'.repeat(run + 1);
