@@ -57,8 +57,8 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     minSeverity: flags.minSeverity,
     suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile),
   };
-  if (flags.manifests?.length && (demo || flags.kubeconfig || flags.context)) {
-    throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig or --context`);
+  if (flags.manifests?.length && (demo || flags.kubeconfig || flags.context || flags.contexts?.length || flags.allContexts)) {
+    throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig, --context, --contexts or --all-contexts`);
   }
   if (flags.contexts?.length || flags.allContexts) return runFleet(flags, opts);
   const { snapshot, source } = await getSnapshot(opts);
@@ -115,6 +115,12 @@ async function runFleet(flags: ScanFlags, opts: Parameters<typeof buildReport>[2
   return EXIT.OK;
 }
 
+function readReport(f: string): Report {
+  const r = JSON.parse(readFileSync(f, 'utf8')) as Report;
+  if (r?.schemaVersion !== '1' || !Array.isArray(r.findings)) throw new Error(`${f} is not a NOIP report (schemaVersion 1)`);
+  return r;
+}
+
 export function buildCli(): Command {
   const program = new Command('noip').description('Read-only Kubernetes posture scanner').version(scannerInfo().version);
   program
@@ -145,6 +151,20 @@ export function buildCli(): Command {
       process.exitCode = await runScan(paths.length ? { ...flags, manifests: [...(flags.manifests ?? []), ...paths] } : flags);
     });
   program
+    .command('render')
+    .description('Render a saved JSON report as markdown, HTML or SARIF (no rescan, so every format shows the same snapshot)')
+    .argument('<report>', 'report.json written by `noip scan`')
+    .addOption(new Option('-o, --output <format>', 'format').choices(['md', 'html', 'sarif']).default('md'))
+    .addOption(new Option('--lang <lang>', 'language for md/html').choices([...LANGS]).default('en'))
+    .option('--out <file>', 'write to a file instead of stdout')
+    .action((file: string, flags: { output: 'md' | 'html' | 'sarif'; lang: Lang; out?: string }) => {
+      const r = readReport(file);
+      const body = flags.output === 'sarif' ? JSON.stringify(renderSarif(r), null, 2) + '\n' : flags.output === 'html' ? renderHtml(r, flags.lang) : renderMarkdown(r, flags.lang);
+      if (flags.out) writeFileSync(flags.out, body);
+      else process.stdout.write(body);
+    });
+
+  program
     .command('diff')
     .description('Show posture drift between two JSON reports (new, resolved, changed findings; control changes; score delta)')
     .argument('<before>', 'earlier report.json')
@@ -152,12 +172,7 @@ export function buildCli(): Command {
     .addOption(new Option('-o, --output <format>', 'diff format').choices(['md', 'json']).default('md'))
     .addOption(new Option('--fail-on <severity>', 'exit 2 if `after` has a NEW finding at or above this severity').choices([...SEVERITIES]))
     .action((before: string, after: string, flags: { output: 'md' | 'json'; failOn?: Severity }) => {
-      const read = (f: string) => {
-        const r = JSON.parse(readFileSync(f, 'utf8')) as Report;
-        if (r.schemaVersion !== '1' || !Array.isArray(r.findings)) throw new Error(`${f} is not a NOIP report (schemaVersion 1)`);
-        return r;
-      };
-      const d = diffReports(read(before), read(after));
+      const d = diffReports(readReport(before), readReport(after));
       process.stdout.write(flags.output === 'json' ? JSON.stringify(d, null, 2) + '\n' : renderDiffMarkdown(d));
       warn(`diff: ${d.new.length} new, ${d.resolved.length} resolved, score ${d.scoreDelta >= 0 ? '+' : ''}${d.scoreDelta}`);
       if (flags.failOn && regressed(d, flags.failOn)) process.exitCode = EXIT.FINDINGS_AT_THRESHOLD;

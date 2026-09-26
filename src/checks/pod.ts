@@ -122,6 +122,8 @@ export const podChecks: Check[] = [
     controls: [],
     remediation: 'Define resources.limits.cpu and resources.limits.memory.',
     run: perContainer((c, _p, path) => {
+      // The API rejects resources on ephemeral containers, so a finding there could never be fixed.
+      if (path.startsWith('spec.ephemeralContainers')) return null;
       const missing = (['cpu', 'memory'] as const).filter((k) => !c.resources?.limits?.[k]);
       return missing.length ? `${path}.resources.limits missing ${missing.join(', ')}` : null;
     }),

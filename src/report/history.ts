@@ -28,7 +28,7 @@ export interface HistoryPoint {
   scopeChanged?: ScopeChange[];
 }
 
-export type ScopeChange = 'checks' | 'minSeverity';
+export type ScopeChange = 'checks' | 'minSeverity' | 'namespaces';
 
 export interface HistoryTarget {
   key: string;
@@ -44,8 +44,14 @@ export interface History {
 
 export function isReport(x: unknown): x is Report {
   const r = x as Report;
-  return Boolean(r) && typeof r === 'object' && r.schemaVersion === '1' && Array.isArray(r.findings) && typeof r.summary?.score === 'number' && typeof r.provenance?.scannedAt === 'string';
+  return Boolean(r) && typeof r === 'object' && r.schemaVersion === '1' && Array.isArray(r.findings) && Number.isFinite(r.summary?.score) && typeof r.provenance?.scannedAt === 'string';
 }
+
+/** Report files are untrusted input: only strict UTC ISO-8601 timestamps are accepted (no locale parsing, no free text). */
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$/;
+/** Coerce a count from an untrusted file to a non-negative integer, so nothing but digits reaches a renderer. */
+const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+const text = (v: unknown): string => (typeof v === 'string' ? v : 'unknown');
 
 /** Pure: group reports into per-target series sorted by scan time. */
 export function buildHistory(entries: Array<{ file: string; report: unknown }>): History {
@@ -56,7 +62,7 @@ export function buildHistory(entries: Array<{ file: string; report: unknown }>):
       skipped.push({ file, reason: 'not a NOIP report (schemaVersion 1)' });
       continue;
     }
-    if (Number.isNaN(Date.parse(report.provenance.scannedAt))) {
+    if (!ISO_UTC.test(report.provenance.scannedAt) || Number.isNaN(Date.parse(report.provenance.scannedAt))) {
       skipped.push({ file, reason: 'invalid scannedAt' });
       continue;
     }
@@ -79,13 +85,13 @@ export function buildHistory(entries: Array<{ file: string; report: unknown }>):
       target.points.push({
         file,
         scannedAt: r.provenance.scannedAt,
-        score: r.summary.score,
-        findings: r.summary.findings,
-        bySeverity: Object.fromEntries(SEVERITIES.map((s) => [s, r.summary.bySeverity?.[s] ?? 0])) as Record<Severity, number>,
-        controlsFailed: r.summary.controlsFailed,
-        suppressed: r.summary.suppressed ?? 0,
-        scannerVersion: r.provenance.scanner?.version ?? 'unknown',
-        gitSha: r.provenance.scanner?.gitSha ?? 'unknown',
+        score: Math.round(r.summary.score),
+        findings: count(r.summary.findings),
+        bySeverity: Object.fromEntries(SEVERITIES.map((s) => [s, count(r.summary.bySeverity?.[s])])) as Record<Severity, number>,
+        controlsFailed: count(r.summary.controlsFailed),
+        suppressed: count(r.summary.suppressed),
+        scannerVersion: text(r.provenance.scanner?.version),
+        gitSha: text(r.provenance.scanner?.gitSha),
         delta: prev && !scope ? r.summary.score - prev.summary.score : null,
         ...(scope ? { scopeChanged: scope } : {}),
       });
@@ -103,6 +109,9 @@ function scopeChange(a: Report, b: Report): ScopeChange[] | undefined {
   const cb = [...(b.provenance.checksRun ?? [])].sort().join(',');
   if (ca !== cb) reasons.push('checks');
   if ((a.provenance.minSeverity ?? 'low') !== (b.provenance.minSeverity ?? 'low')) reasons.push('minSeverity');
+  const na = [...(a.provenance.excludedNamespaces ?? [])].sort().join(',');
+  const nb = [...(b.provenance.excludedNamespaces ?? [])].sort().join(',');
+  if (na !== nb) reasons.push('namespaces');
   return reasons.length ? reasons : undefined;
 }
 
@@ -156,7 +165,7 @@ const H: Record<Lang, HStrings> = {
     single: (at, sc) => `1 scan on ${at}, score ${sc}. Save more reports to see a trend.`,
     cols: ['Scanned at', 'Score', 'Δ', 'Findings', 'Critical / High / Medium / Low', 'Controls failed', 'Scanner'],
     scope: 'not comparable',
-    why: { checks: 'check set changed', minSeverity: 'severity filter changed' },
+    why: { checks: 'check set changed', minSeverity: 'severity filter changed', namespaces: 'namespace scope changed' },
     skipped: 'Skipped files',
     chartLabel: (t) => `Posture score over time for ${t} (0–100)`,
     point: (at, s, f) => `${at}: score ${s}, ${f} finding(s)`,
@@ -172,7 +181,7 @@ const H: Record<Lang, HStrings> = {
     single: (at, sc) => `1 escaneo el ${at}, puntuación ${sc}. Guarde más informes para ver una tendencia.`,
     cols: ['Escaneado', 'Puntuación', 'Δ', 'Hallazgos', 'Crítico / Alto / Medio / Bajo', 'Controles fallidos', 'Escáner'],
     scope: 'no comparable',
-    why: { checks: 'cambió el conjunto de comprobaciones', minSeverity: 'cambió el filtro de severidad' },
+    why: { checks: 'cambió el conjunto de comprobaciones', minSeverity: 'cambió el filtro de severidad', namespaces: 'cambió el alcance de namespaces' },
     skipped: 'Archivos omitidos',
     chartLabel: (t) => `Puntuación de postura a lo largo del tiempo para ${t} (0–100)`,
     point: (at, s, f) => `${at}: puntuación ${s}, ${f} hallazgo(s)`,
@@ -204,7 +213,7 @@ export function renderHistoryMarkdown(h: History, lang: Lang = 'en'): string {
     out.push(`## ${mdSafe(s.target(t.source, t.context ?? s.defaultContext))}`, '', trendLine(t, s), '');
     out.push(`| ${s.cols.join(' | ')} |`, `|${s.cols.map(() => '---').join('|')}|`);
     for (const p of t.points) {
-      out.push(`| ${stamp(p.scannedAt)} | ${p.score} | ${deltaCell(p, s)} | ${p.findings} | ${sevCell(p)} | ${p.controlsFailed} | ${mdSafe(`${p.scannerVersion} (${p.gitSha.slice(0, 7)})`)} |`);
+      out.push(`| ${mdSafe(stamp(p.scannedAt))} | ${p.score} | ${deltaCell(p, s)} | ${p.findings} | ${sevCell(p)} | ${p.controlsFailed} | ${mdSafe(`${p.scannerVersion} (${p.gitSha.slice(0, 7)})`)} |`);
     }
     out.push('');
   }
@@ -271,7 +280,7 @@ export function renderHistoryHtml(h: History, lang: Lang = 'en'): string {
     const rows = t.points
       .map(
         (p) =>
-          `<tr><td>${esc(stamp(p.scannedAt))}</td><td>${p.score}</td><td>${esc(deltaCell(p, s))}</td><td>${p.findings}</td><td>${sevCell(p)}</td><td>${p.controlsFailed}</td><td><code>${esc(`${p.scannerVersion} (${p.gitSha.slice(0, 7)})`)}</code></td></tr>`,
+          `<tr><td>${esc(stamp(p.scannedAt))}</td><td>${esc(p.score)}</td><td>${esc(deltaCell(p, s))}</td><td>${esc(p.findings)}</td><td>${esc(sevCell(p))}</td><td>${esc(p.controlsFailed)}</td><td><code>${esc(`${p.scannerVersion} (${p.gitSha.slice(0, 7)})`)}</code></td></tr>`,
       )
       .join('');
     return (

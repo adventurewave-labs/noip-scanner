@@ -135,6 +135,8 @@ Findings are matched by their stable ID. The diff reports:
 
 It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
 
+`noip render report.json -o md|html|sarif [--lang es]` re-renders a saved report without rescanning.
+
 ## Posture history: `noip history`
 
 ```bash
@@ -143,9 +145,9 @@ noip history reports/ -o html --out trend.html # adds a score-over-time chart (n
 noip history a.json b.json c.json -o json      # machine-readable series
 ```
 
-It reads saved JSON reports (files, or directories searched for `*.json`) and groups them by target: source plus kubeconfig context. Each row shows the score, the change since the previous scan, findings by severity and the scanner version that produced it. Files that aren't NOIP reports are listed as skipped rather than failing the run.
+It reads saved JSON reports (files, or directories searched for `*.json`) and groups them by target: source plus kubeconfig context. Each row shows the score, the change since the previous scan, findings by severity and the scanner version that produced it. Files that aren't NOIP reports, or whose `scannedAt` isn't a UTC ISO-8601 timestamp, are listed as skipped rather than failing the run. Report files are treated as untrusted input: counts are coerced to numbers and all text is escaped.
 
-Scores are only comparable when the same checks ran with the same `--min-severity`. When either changes between two scans, that row says "not comparable" and has no delta, so a narrower scan never shows up as an improvement. The HTML chart uses a fixed 0–100 axis, has a hover tooltip on each point, and keeps the data table next to it.
+Scores are only comparable when the same checks ran with the same `--min-severity` over the same namespaces. When any of these changes between two scans, that row says "not comparable" and has no delta, so a narrower scan never shows up as an improvement. The HTML chart uses a fixed 0–100 axis, has a hover tooltip on each point, and keeps the data table next to it.
 
 ## Shift-left manifest scanning
 
@@ -178,8 +180,10 @@ noip policy --action deny --min-severity critical | kubectl apply -f -   # later
 - **Coverage:** POD-001 to POD-009 and NS-001, one policy and binding per check. The pod rules match Pods and the pod templates of Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs and CronJobs. NET and RBAC checks describe cluster state rather than a single object, so they stay in `noip scan`.
 - **Safe default:** bindings use `Warn` + `Audit` with `failurePolicy: Ignore`. `--action deny` switches to `Deny` with `failurePolicy: Fail`.
 - **Scope:** system namespaces are skipped unless `--include-system`; add more with `--exclude-namespace`. Filter with `--checks` or `--min-severity`.
-- **Parity:** `test/policy.test.ts` evaluates every CEL rule against the demo cluster, the seeded fixtures and 400 random pods, and requires the same verdict as the check. The kind CI job applies the policies to a real API server and checks both the warning and the deny.
-- **Limits:** ephemeral containers (`kubectl debug`) are added through a subresource these policies don't match; `noip scan` still reports them.
+- **Parity:** `test/policy.test.ts` evaluates every CEL rule against the demo cluster, the seeded fixtures and 400 random pods, and requires the same verdict as the check. The kind CI job applies the policies to a real API server and requires the NOIP warning in warn mode and a `denied request` with the NOIP message in deny mode. (Not yet run: GitHub Actions is unavailable for this repository at the moment.)
+- **Pods on CREATE only.** Pod specs are almost immutable, and matching UPDATE would reject label or finalizer changes on pods admitted before the policy existed. Workload controllers are checked on CREATE and UPDATE.
+- **`kubectl debug`:** container-level policies also match the `pods/ephemeralcontainers` subresource and check only the new debug containers. POD-008 doesn't apply to ephemeral containers, because the API rejects resource limits on them.
+- **Type checking:** one expression reads either a Pod or a workload's pod template, so the API server's per-kind type check may list warnings for fields that exist only on the other kinds. Evaluation is unaffected; the kind job prints them.
 
 ## Fixes: `noip fix`
 
@@ -230,7 +234,7 @@ Findings from live clusters use the pseudo-path `k8s/<Kind>/<namespace>/<name>`;
     sarif_file: ${{ steps.noip.outputs.sarif-file }}
 ```
 
-Outputs: `score`, `findings`, `sarif-file`, `report-file`. Inputs reach the script through environment variables only, never by template expansion inside `run`. While this repository is private, other repositories can only use the action if its Actions access settings allow it.
+Outputs: `score`, `findings`, `sarif-file`, `report-file`. The cluster or files are scanned once; SARIF and the job summary are rendered from that JSON with `noip render`, so all outputs describe the same snapshot. `actions/setup-node` runs only if the runner has no Node 22+, so the job's Node version is otherwise left alone. `manifests` may be space- or newline-separated. Inputs reach the script through environment variables only, never by template expansion inside `run`. While this repository is private, other repositories can only use the action if its Actions access settings allow it.
 
 **pre-commit.** `.pre-commit-hooks.yaml` defines a `noip` hook for staged `*.yaml`/`*.yml` files. It needs Node 22+ and npm on `PATH`; the first run builds the scanner inside pre-commit's cache (about 15 seconds), and later runs only scan.
 
@@ -243,7 +247,7 @@ repos:
         args: [--fail-on, critical]   # default: high
 ```
 
-`noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Non-Kubernetes YAML is ignored. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
+`noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Put paths before options that take several values (`--import-sarif`, `--contexts`), or after `--`. Well-formed non-Kubernetes YAML is ignored; YAML that doesn't parse fails the hook. Helm chart `templates/` are excluded, since they are Go templates; scan `helm template … | noip scan --manifests -` instead. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
 
 ## LLM explanation (optional)
 

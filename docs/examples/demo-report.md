@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T19:58:47.175Z |
+| Scanned at | 2026-09-26T20:31:24.218Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `320718ce33f4` |
+| Scanner | noip 0.1.0 @ `1504153b2f8d` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 

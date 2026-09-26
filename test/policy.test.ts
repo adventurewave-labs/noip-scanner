@@ -18,10 +18,10 @@ const docs = (opts = {}) => policyDocuments(opts) as Doc[];
 const policies = () => docs().filter((d) => d.kind === 'ValidatingAdmissionPolicy');
 
 /** Evaluate a generated policy the way the API server does: variables first, then the validation. */
-function admits(policy: Doc, object: unknown): boolean {
+function admits(policy: Doc, object: unknown, request = { operation: 'CREATE', subResource: '' }): boolean {
   const variables: Record<string, unknown> = {};
-  for (const v of (policy.spec.variables ?? []) as Array<{ name: string; expression: string }>) variables[v.name] = evaluate(v.expression, { object, variables });
-  return (policy.spec.validations as Array<{ expression: string }>).every((x) => evaluate(x.expression, { object, variables }) === true);
+  for (const v of (policy.spec.variables ?? []) as Array<{ name: string; expression: string }>) variables[v.name] = evaluate(v.expression, { object, variables, request });
+  return (policy.spec.validations as Array<{ expression: string }>).every((x) => evaluate(x.expression, { object, variables, request }) === true);
 }
 
 const byId = (id: string) => policies().find((p) => p.metadata.name === id.toLowerCase())!;
@@ -110,6 +110,7 @@ describe('CEL rules agree with the checks', () => {
         hostNetwork: fc.boolean(),
         securityContext: fc.record({ runAsNonRoot: fc.boolean(), runAsUser: fc.constantFrom(0, 1000) }, { requiredKeys: [] }),
         initContainers: fc.uniqueArray(container, { selector: (c) => c.name, maxLength: 1 }),
+        ephemeralContainers: fc.uniqueArray(container, { selector: (c) => c.name, maxLength: 1 }),
         containers: fc.uniqueArray(container, { selector: (c) => c.name, minLength: 1, maxLength: 2 }),
       },
       { requiredKeys: ['containers'] },
@@ -128,12 +129,32 @@ describe('CEL rules agree with the checks', () => {
   it('reads the pod template of every workload kind', () => {
     fc.assert(
       fc.property(pod, fc.constantFrom('Deployment', 'StatefulSet', 'DaemonSet', 'ReplicaSet', 'Job', 'CronJob'), (p, kind) => {
-        const template = { metadata: {}, spec: p.spec };
+        const spec = { ...p.spec! };
+        delete spec.ephemeralContainers; // not part of a pod template
+        const template = { metadata: {}, spec };
         const object = kind === 'CronJob' ? { kind, spec: { jobTemplate: { spec: { template } } } } : { kind, spec: { template } };
-        for (const id of POD_RULES) expect(admits(byId(id), object), `${id} ${kind}`).toBe(passesCheck(id, p));
+        for (const id of POD_RULES) expect(admits(byId(id), object), `${id} ${kind}`).toBe(passesCheck(id, { ...p, spec }));
       }),
       { numRuns: 100 },
     );
+  });
+
+  it('pods are matched on CREATE only; kubectl debug is checked on the ephemeralcontainers subresource', () => {
+    for (const p of policies().filter((x) => x.metadata.name.startsWith('noip-pod-'))) {
+      const rules = p.spec.matchConstraints.resourceRules as Array<{ resources: string[]; operations: string[] }>;
+      expect(rules.find((r) => r.resources.includes('pods'))!.operations).toEqual(['CREATE']);
+      const eph = rules.find((r) => r.resources.includes('pods/ephemeralcontainers'));
+      expect(Boolean(eph), p.metadata.name).toBe(!['noip-pod-002', 'noip-pod-003', 'noip-pod-004', 'noip-pod-008'].includes(p.metadata.name));
+    }
+    // An old pod without limits/securityContext can still get a hardened debug container…
+    const legacy = asPod({ metadata: { name: 'old', namespace: 'app' }, spec: { containers: [{ name: 'app', image: 'x' }] } });
+    const hardenedDebug = { name: 'dbg', image: 'busybox', securityContext: { privileged: false, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true } };
+    const sub = { operation: 'UPDATE', subResource: 'ephemeralcontainers' };
+    const withDebug = (c: object) => ({ ...legacy, spec: { ...legacy.spec, ephemeralContainers: [c] } });
+    for (const id of ['NOIP-POD-001', 'NOIP-POD-005', 'NOIP-POD-006', 'NOIP-POD-007', 'NOIP-POD-009']) expect(admits(byId(id), withDebug(hardenedDebug), sub), id).toBe(true);
+    // …but a privileged one is flagged, and the regular containers are still checked on CREATE.
+    expect(admits(byId('NOIP-POD-001'), withDebug({ ...hardenedDebug, securityContext: { privileged: true } }), sub)).toBe(false);
+    expect(admits(byId('NOIP-POD-007'), withDebug(hardenedDebug))).toBe(false);
   });
 
   it('namespace rule matches NOIP-NS-001, and system namespaces are excluded by a match condition', () => {

@@ -121,9 +121,9 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
 
   if (r.network) {
     const n = r.network;
-    out.push(`## ${t.network}`, '', `CNI: ${n.cni ?? t.unknown} · tool version: ${n.toolVersion ?? t.unknown} · input sha256: \`${n.inputSha256}\``, '');
+    out.push(`## ${t.network}`, '', `CNI: ${esc(n.cni ?? t.unknown)} · ${t.networkMeta[0]}: ${esc(n.toolVersion ?? t.unknown)} · ${t.networkMeta[1]}: ${code(n.inputSha256)}`, '');
     out.push(`| ${t.networkCols.join(' | ')} |`, '|---|---|---|');
-    for (const c of n.checks) out.push(`| ${esc(c.name)} | ${c.status} | ${esc(c.detail ?? '')} |`);
+    for (const c of n.checks) out.push(`| ${esc(c.name)} | ${esc(c.status)} | ${esc(c.detail ?? '')} |`);
     out.push('', `_${t.networkNote}_`, '');
   }
   return out.join('\n');

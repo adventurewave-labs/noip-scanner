@@ -61,6 +61,7 @@ export interface Strings {
   network: string;
   networkCols: [string, string, string];
   networkNote: string;
+  networkMeta: [string, string];
   unknown: string;
   checkTitles: Record<string, string>;
   remediations: Record<string, string>;
@@ -126,6 +127,7 @@ const EN: Strings = {
   network: 'Network (ingested from k8s-netinspect)',
   networkCols: ['Check', 'Status', 'Detail'],
   networkNote: 'NOIP does not diagnose the network itself; this section is reproduced from the input file.',
+  networkMeta: ['tool version', 'input sha256'],
   unknown: 'unknown',
   checkTitles: {},
   remediations: {},
@@ -147,7 +149,7 @@ const EN: Strings = {
 };
 
 const SEV_ES: Record<Severity, string> = { critical: 'crítico', high: 'alto', medium: 'medio', low: 'bajo' };
-const SCOPE_ES: Record<Scope, string> = { cluster: 'todo el clúster', namespace: 'un namespace', workload: 'una carga de trabajo' };
+const SCOPE_ES: Record<Scope, string> = { cluster: 'clúster', namespace: 'namespace', workload: 'carga de trabajo' };
 
 const ES: Strings = {
   title: 'Reporte de postura NOIP',
@@ -174,7 +176,7 @@ const ES: Strings = {
   headline: (score, findings, crit, high, failed, checks, quick) =>
     `Puntaje ${score}/100. ${findings} hallazgo(s) (${crit} críticos, ${high} altos) en ${failed} de ${checks} revisiones; ${quick} tienen una corrección determinista.`,
   fixFirst: 'Corregir primero (orden determinista: severidad, luego alcance, luego número de recursos):',
-  priorityLine: (sev, scope, n, auto) => `${SEV_ES[sev]}, afecta ${SCOPE_ES[scope]}, ${n} recurso(s)${auto ? `, ${auto} con corrección automática` : ''}`,
+  priorityLine: (sev, scope, n, auto) => `${SEV_ES[sev]}, alcance: ${SCOPE_ES[scope]}, ${n} recurso(s)${auto ? `, ${auto} con corrección automática` : ''}`,
   eg: 'p. ej.',
   quickWins: (q, d) => [`Mejoras rápidas con corrección determinista: **${q}**`, `requieren una decisión de diseño: **${d}**`],
   explanation: 'Explicación (generada por IA, orientativa)',
@@ -201,6 +203,7 @@ const ES: Strings = {
   network: 'Red (importado de k8s-netinspect)',
   networkCols: ['Revisión', 'Estado', 'Detalle'],
   networkNote: 'NOIP no diagnostica la red; esta sección se reproduce del archivo de entrada.',
+  networkMeta: ['versión de la herramienta', 'sha256 de la entrada'],
   unknown: 'desconocido',
   checkTitles: {
     'NOIP-POD-001': 'Contenedor privilegiado',

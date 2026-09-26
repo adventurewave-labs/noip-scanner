@@ -5,6 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 failed=()
+skipped=()
 step() { local name=$1; shift; printf '\n== %s\n' "$name"; if "$@"; then echo "   ok"; else echo "   FAILED"; failed+=("$name"); fi; }
 
 rm -rf dist coverage
@@ -14,6 +15,8 @@ step doc-lint         bash scripts/doc-lint.sh
 step "unit+coverage"  npx vitest run --coverage
 if git rev-parse -q --verify "${NOIP_BASE_REF:-origin/main}" >/dev/null; then
   step ratchet        node scripts/check-ratchet.mjs "${NOIP_BASE_REF:-origin/main}"
+else
+  printf '\n== ratchet\n   SKIPPED: base ref %s not found (set NOIP_BASE_REF)\n' "${NOIP_BASE_REF:-origin/main}"; skipped+=(ratchet)
 fi
 step build            npm run -s build
 step "demo report schema" bash -c 'node --no-deprecation dist/cli.js scan --demo --out /tmp/noip-demo.json 2>/dev/null && node scripts/validate-report.mjs /tmp/noip-demo.json'
@@ -34,4 +37,4 @@ else
 fi
 
 echo
-if [ ${#failed[@]} -eq 0 ]; then echo "ci-local: ALL GATES PASSED"; else echo "ci-local: FAILED: ${failed[*]}"; exit 1; fi
+if [ ${#failed[@]} -eq 0 ]; then echo "ci-local: ALL GATES PASSED${skipped[*]:+ (skipped: ${skipped[*]})}"; else echo "ci-local: FAILED: ${failed[*]}"; exit 1; fi

@@ -90,7 +90,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 24 | Posture history and trend (`noip history`) | shipped |
 | 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | shipped |
 | 26 | Distribution: composite GitHub Action and pre-commit hook | shipped |
-| 27 | Independent review #3, with fixes | planned |
+| 27 | Independent review #3, with fixes | shipped |
 | 28 | Wrap-up | planned |
 
 ## Later

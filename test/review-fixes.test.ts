@@ -15,6 +15,8 @@ describe('review fixes', () => {
     });
     const ids = buildReport(snap({ namespaces: ns('app'), networkPolicies: covered, pods: [pod] }), 'live').findings.map((f) => [f.id, f.evidence]);
     expect(ids).toContainEqual(['NOIP-POD-001:Pod/app/p/debugger', 'spec.ephemeralContainers[debugger].securityContext.privileged=true']);
+    // Review 3: the API rejects resources on ephemeral containers, so POD-008 must not flag them.
+    expect(ids.map(([id]) => id)).not.toContain('NOIP-POD-008:Pod/app/p/debugger');
   });
 
   it('flags RoleBindings granting cluster-admin to broad subjects, and anonymous/serviceaccount groups', () => {

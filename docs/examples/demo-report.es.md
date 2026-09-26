@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T19:58:48.064Z |
+| Fecha del análisis | 2026-09-26T20:31:25.619Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `320718ce33f4` |
+| Escáner | noip 0.1.0 @ `1504153b2f8d` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
@@ -23,11 +23,11 @@ Puntaje 12/100. 25 hallazgo(s) (2 críticos, 9 altos) en 14 de 15 revisiones; 15
 
 Corregir primero (orden determinista: severidad, luego alcance, luego número de recursos):
 
-1. **NOIP-POD-001: Contenedor privilegiado**: crítico, afecta una carga de trabajo, 1 recurso(s), 1 con corrección automática (p. ej. `Pod/ci/debug-shell`)
-2. **NOIP-POD-002: El pod comparte el espacio de PID del host**: crítico, afecta una carga de trabajo, 1 recurso(s), 1 con corrección automática (p. ej. `DaemonSet/monitoring/node-exporter`)
-3. **NOIP-RBAC-002: cluster-admin otorgado a una ServiceAccount default**: alto, afecta todo el clúster, 1 recurso(s) (p. ej. `ClusterRoleBinding/ci-deployer-admin`)
-4. **NOIP-NET-001: Namespace sin NetworkPolicy**: alto, afecta un namespace, 3 recurso(s) (p. ej. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
-5. **NOIP-POD-006: El contenedor podría ejecutarse como root**: alto, afecta una carga de trabajo, 3 recurso(s), 3 con corrección automática (p. ej. `Deployment/payments/api`, `Pod/ci/debug-shell`)
+1. **NOIP-POD-001: Contenedor privilegiado**: crítico, alcance: carga de trabajo, 1 recurso(s), 1 con corrección automática (p. ej. `Pod/ci/debug-shell`)
+2. **NOIP-POD-002: El pod comparte el espacio de PID del host**: crítico, alcance: carga de trabajo, 1 recurso(s), 1 con corrección automática (p. ej. `DaemonSet/monitoring/node-exporter`)
+3. **NOIP-RBAC-002: cluster-admin otorgado a una ServiceAccount default**: alto, alcance: clúster, 1 recurso(s) (p. ej. `ClusterRoleBinding/ci-deployer-admin`)
+4. **NOIP-NET-001: Namespace sin NetworkPolicy**: alto, alcance: namespace, 3 recurso(s) (p. ej. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
+5. **NOIP-POD-006: El contenedor podría ejecutarse como root**: alto, alcance: carga de trabajo, 3 recurso(s), 3 con corrección automática (p. ej. `Deployment/payments/api`, `Pod/ci/debug-shell`)
 
 Mejoras rápidas con corrección determinista: **15** · requieren una decisión de diseño: **10**
 

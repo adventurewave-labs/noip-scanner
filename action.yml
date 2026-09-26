@@ -52,7 +52,15 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+    - id: node
+      name: check for Node 22+
+      shell: bash
+      run: |
+        major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+        echo "ok=$([ "$major" -ge 22 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+    # Only when the runner lacks Node 22+, so the caller's Node version is otherwise left alone.
+    - if: steps.node.outputs.ok != 'true'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 22
     - name: build noip
@@ -76,7 +84,8 @@ runs:
         set -euo pipefail
         args=()
         if [ -n "$IN_MANIFESTS" ]; then
-          read -ra paths <<< "$IN_MANIFESTS"
+          # Space- or newline-separated (a `manifests: |` block works); every path is kept.
+          read -ra paths -d '' <<< "$IN_MANIFESTS" || true
           args+=(--manifests "${paths[@]}")
         elif [ -n "$IN_KUBECONFIG" ]; then
           args+=(--kubeconfig "$IN_KUBECONFIG")
@@ -84,16 +93,17 @@ runs:
           echo "::error::set either 'manifests' or 'kubeconfig'"; exit 1
         fi
         if [ -n "$IN_MIN_SEVERITY" ]; then args+=(--min-severity "$IN_MIN_SEVERITY"); fi
+        # Scan once; every other format is rendered from that report, so all outputs describe the same snapshot.
         node "$NOIP_BIN" scan "${args[@]}" -o json --out "$IN_REPORT"
-        node "$NOIP_BIN" scan "${args[@]}" -o sarif --out "$IN_SARIF"
-        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then node "$NOIP_BIN" scan "${args[@]}" -o md --lang "$IN_LANG" >> "$GITHUB_STEP_SUMMARY"; fi
+        node "$NOIP_BIN" render "$IN_REPORT" -o sarif --out "$IN_SARIF"
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then node "$NOIP_BIN" render "$IN_REPORT" -o md --lang "$IN_LANG" >> "$GITHUB_STEP_SUMMARY"; fi
         node -e '
           const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
           require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `score=${r.summary.score}\nfindings=${r.summary.findings}\n`);
         ' "$IN_REPORT"
         { echo "sarif-file=$IN_SARIF"; echo "report-file=$IN_REPORT"; } >> "$GITHUB_OUTPUT"
         if [ -n "$IN_FAIL_ON" ]; then
-          # Re-evaluate the gate from the saved report so the scan runs once per format, not once more.
+          # The gate is evaluated from the saved report too.
           node -e '
             const sev = ["critical", "high", "medium", "low"];
             const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));

@@ -131,14 +131,18 @@ jobs:
           }
           # Policies take a few seconds to load. Warn mode admits the pod and prints the NOIP message.
           for i in $(seq 1 30); do out=$(probe vap-warn) && echo "$out" | grep -q 'NOIP-POD-001' && break; sleep 2; done
-          echo "$out"; echo "$out" | grep -q 'NOIP-POD-001'
+          echo "$out"
+          echo "$out" | grep -q 'Warning: .*NOIP-POD-001'
+          # Informational: one expression reads a Pod or a workload template, so the server's per-kind
+          # type check may warn about fields that exist only on the other kinds (runtime is unaffected).
           kubectl get validatingadmissionpolicies -l app.kubernetes.io/managed-by=noip \
             -o jsonpath='{range .items[*]}{.metadata.name}{" type-check: "}{.status.typeChecking.expressionWarnings}{"\n"}{end}'
-          # Deny mode rejects it.
+          # Deny mode rejects it, with the NOIP message (not just any non-zero exit).
           node dist/cli.js policy --action deny --checks NOIP-POD-001 | kubectl apply -f -
-          for i in $(seq 1 30); do if ! probe vap-deny >/dev/null; then denied=1; break; fi; sleep 2; done
-          test "${denied:-0}" = 1 && probe vap-deny | grep 'NOIP-POD-001' || true
-          test "${denied:-0}" = 1
+          for i in $(seq 1 30); do out=$(probe vap-deny) || true; echo "$out" | grep -q 'denied request' && break; sleep 2; done
+          echo "$out"
+          echo "$out" | grep -q 'denied request'
+          echo "$out" | grep -q 'NOIP-POD-001'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

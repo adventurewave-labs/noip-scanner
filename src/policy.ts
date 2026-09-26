@@ -15,29 +15,42 @@ import { SEVERITIES, type Severity } from './types.js';
 /** The pod spec of a Pod or of any workload template (Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob). */
 const POD_SPEC =
   "object.kind == 'Pod' ? object.spec : (object.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec : object.spec.template.spec)";
-/** Regular and init containers. Ephemeral containers are added through a subresource these policies don't match. */
+/** Regular and init containers. */
 const CONTAINERS = "variables.spec.containers + (has(variables.spec.initContainers) ? variables.spec.initContainers : [])";
+/** Ephemeral containers (`kubectl debug`), added to running pods through the pods/ephemeralcontainers subresource. */
+const EPHEMERAL = "has(variables.spec.ephemeralContainers) ? variables.spec.ephemeralContainers : []";
 
 const sc = (field: string) => `has(c.securityContext) && has(c.securityContext.${field})`;
 const podSc = (field: string) => `has(variables.spec.securityContext) && has(variables.spec.securityContext.${field})`;
 
+/** Per-container predicates over `c`. */
+const CONTAINER_PREDICATES: Record<string, string> = {
+  'NOIP-POD-001': `!(${sc('privileged')}) || c.securityContext.privileged == false`,
+  'NOIP-POD-005': `${sc('allowPrivilegeEscalation')} && c.securityContext.allowPrivilegeEscalation == false`,
+  // Effective values: the container setting wins over the pod setting (same precedence as the check).
+  'NOIP-POD-006':
+    `(${sc('runAsUser')} ? c.securityContext.runAsUser != 0 : !(${podSc('runAsUser')} && variables.spec.securityContext.runAsUser == 0)) && (` +
+    `(${sc('runAsNonRoot')} ? c.securityContext.runAsNonRoot == true : (${podSc('runAsNonRoot')} && variables.spec.securityContext.runAsNonRoot == true)) || ` +
+    `(${sc('runAsUser')} ? c.securityContext.runAsUser > 0 : (${podSc('runAsUser')} && variables.spec.securityContext.runAsUser > 0)))`,
+  'NOIP-POD-007': `${sc('readOnlyRootFilesystem')} && c.securityContext.readOnlyRootFilesystem == true`,
+  'NOIP-POD-008': "has(c.resources) && has(c.resources.limits) && 'cpu' in c.resources.limits && 'memory' in c.resources.limits",
+  'NOIP-POD-009': '(!has(c.env) || c.env.all(e, !has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))) && (!has(c.envFrom) || c.envFrom.all(e, !has(e.secretRef)))',
+};
+/** Ephemeral containers cannot set resources (the API rejects them), so POD-008 does not apply to them. */
+const EPHEMERAL_EXEMPT = new Set(['NOIP-POD-008']);
+const coversEphemeral = (id: string) => id in CONTAINER_PREDICATES && !EPHEMERAL_EXEMPT.has(id);
+
+const containerRule = (id: string, p: string) =>
+  coversEphemeral(id)
+    ? // On the ephemeralcontainers subresource only the debug containers are new; the rest were admitted earlier.
+      `(request.subResource == 'ephemeralcontainers' || variables.containers.all(c, ${p})) && variables.ephemeral.all(c, ${p})`
+    : `variables.containers.all(c, ${p})`;
+
 export const CEL_RULES: Record<string, string> = {
-  'NOIP-POD-001': `variables.containers.all(c, !(${sc('privileged')}) || c.securityContext.privileged == false)`,
+  ...Object.fromEntries(Object.entries(CONTAINER_PREDICATES).map(([id, p]) => [id, containerRule(id, p)])),
   'NOIP-POD-002': '!has(variables.spec.hostPID) || variables.spec.hostPID == false',
   'NOIP-POD-003': '!has(variables.spec.hostIPC) || variables.spec.hostIPC == false',
   'NOIP-POD-004': '!has(variables.spec.hostNetwork) || variables.spec.hostNetwork == false',
-  'NOIP-POD-005': `variables.containers.all(c, ${sc('allowPrivilegeEscalation')} && c.securityContext.allowPrivilegeEscalation == false)`,
-  // Effective values: the container setting wins over the pod setting (same precedence as the check).
-  'NOIP-POD-006':
-    'variables.containers.all(c, ' +
-    `(${sc('runAsUser')} ? c.securityContext.runAsUser != 0 : !(${podSc('runAsUser')} && variables.spec.securityContext.runAsUser == 0)) && (` +
-    `(${sc('runAsNonRoot')} ? c.securityContext.runAsNonRoot == true : (${podSc('runAsNonRoot')} && variables.spec.securityContext.runAsNonRoot == true)) || ` +
-    `(${sc('runAsUser')} ? c.securityContext.runAsUser > 0 : (${podSc('runAsUser')} && variables.spec.securityContext.runAsUser > 0))))`,
-  'NOIP-POD-007': `variables.containers.all(c, ${sc('readOnlyRootFilesystem')} && c.securityContext.readOnlyRootFilesystem == true)`,
-  'NOIP-POD-008':
-    "variables.containers.all(c, has(c.resources) && has(c.resources.limits) && 'cpu' in c.resources.limits && 'memory' in c.resources.limits)",
-  'NOIP-POD-009':
-    'variables.containers.all(c, (!has(c.env) || c.env.all(e, !has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))) && (!has(c.envFrom) || c.envFrom.all(e, !has(e.secretRef))))',
   'NOIP-NS-001':
     "has(object.metadata.labels) && 'pod-security.kubernetes.io/enforce' in object.metadata.labels && object.metadata.labels['pod-security.kubernetes.io/enforce'] in ['baseline', 'restricted']",
 };
@@ -55,10 +68,16 @@ export interface PolicyOptions {
   excludeNamespaces?: string[];
 }
 
-const WORKLOADS = [
-  { apiGroups: [''], apiVersions: ['v1'], resources: ['pods'] },
-  { apiGroups: ['apps'], apiVersions: ['v1'], resources: ['deployments', 'statefulsets', 'daemonsets', 'replicasets'] },
-  { apiGroups: ['batch'], apiVersions: ['v1'], resources: ['jobs', 'cronjobs'] },
+/**
+ * Pods are checked on CREATE only: a pod spec is immutable apart from a few fields, and matching UPDATE would
+ * reject metadata-only updates (labels, finalizers, owner references) on pods admitted before the policy existed.
+ * Workload controllers are checked on CREATE and UPDATE, since their pod template can change.
+ */
+const podRules = (id: string) => [
+  { apiGroups: [''], apiVersions: ['v1'], resources: ['pods'], operations: ['CREATE'] },
+  ...(coversEphemeral(id) ? [{ apiGroups: [''], apiVersions: ['v1'], resources: ['pods/ephemeralcontainers'], operations: ['UPDATE'] }] : []),
+  { apiGroups: ['apps'], apiVersions: ['v1'], resources: ['deployments', 'statefulsets', 'daemonsets', 'replicasets'], operations: ['CREATE', 'UPDATE'] },
+  { apiGroups: ['batch'], apiVersions: ['v1'], resources: ['jobs', 'cronjobs'], operations: ['CREATE', 'UPDATE'] },
 ];
 
 export function policyDocuments(opts: PolicyOptions = {}): object[] {
@@ -93,12 +112,12 @@ export function policyDocuments(opts: PolicyOptions = {}): object[] {
         failurePolicy: action === 'deny' ? 'Fail' : 'Ignore',
         matchConstraints: isNs
           ? { resourceRules: [{ apiGroups: [''], apiVersions: ['v1'], operations: ['CREATE', 'UPDATE'], resources: ['namespaces'] }] }
-          : { resourceRules: WORKLOADS.map((w) => ({ ...w, operations: ['CREATE', 'UPDATE'] })) },
+          : { resourceRules: podRules(check.id) },
         ...(isNs
           ? {
               matchConditions: excluded.length ? [{ name: 'not-excluded', expression: `!(object.metadata.name in ${JSON.stringify(excluded).replace(/"/g, "'")})` }] : undefined,
             }
-          : { variables: [{ name: 'spec', expression: POD_SPEC }, { name: 'containers', expression: CONTAINERS }] }),
+          : { variables: [{ name: 'spec', expression: POD_SPEC }, { name: 'containers', expression: CONTAINERS }, { name: 'ephemeral', expression: EPHEMERAL }] }),
         validations: [{ expression: rule, message: `${check.id} ${check.title}. ${check.remediation}`, reason: 'Forbidden' }],
       },
     });

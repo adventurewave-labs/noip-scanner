@@ -26,7 +26,7 @@ export interface ExecutiveSummary {
 
 const SCOPE_RANK = { cluster: 0, namespace: 1, workload: 2 } as const;
 const scopeOf = (f: Finding): Priority['scope'] =>
-  f.resource.kind === 'ClusterRoleBinding' ? 'cluster' : f.resource.kind === 'Namespace' || f.resource.kind === 'RoleBinding' ? 'namespace' : 'workload';
+  f.resource.kind === 'ClusterRoleBinding' ? 'cluster' : f.resource.kind === 'Namespace' || f.resource.kind === 'RoleBinding' || f.resource.kind === 'NetworkPolicy' ? 'namespace' : 'workload';
 
 export function executiveSummary(r: Report, top = 5): ExecutiveSummary {
   const groups = new Map<string, Finding[]>();

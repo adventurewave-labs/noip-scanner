@@ -102,7 +102,7 @@ export function renderHtml(r: Report, lang: Lang = 'en'): string {
     .join('');
   const [netTitle, netNote] = t.network.split(' (');
   const network = r.network
-    ? `<h2>${esc(netTitle)} <span class="muted">(${esc(netNote)}</span></h2><div class="table-wrap"><table><thead><tr>${t.networkCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.network.checks
+    ? `<h2>${esc(netTitle)} <span class="muted">(${esc(netNote)}</span></h2><p class="muted">CNI: ${esc(r.network.cni ?? t.unknown)} · ${esc(t.networkMeta[0])}: ${esc(r.network.toolVersion ?? t.unknown)} · ${esc(t.networkMeta[1])}: <code>${esc(r.network.inputSha256)}</code></p><div class="table-wrap"><table><thead><tr>${t.networkCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.network.checks
         .map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td><td>${esc(c.detail ?? '')}</td></tr>`)
         .join('')}</tbody></table></div>`
     : '';
