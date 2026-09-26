@@ -47,3 +47,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | Pod Security readiness | `src/psa.ts`, report `podSecurity` | Upstream PSA conformance fixtures, 1.23–1.37 (`test/psa.test.ts`) |
 | OSCAL assessment results | `src/report/oscal.ts`, `-o oscal`, bundle `report.oscal.json` | Official OSCAL 1.2.3 schema validation; deterministic UUIDv5 known-answer test (`test/oscal.test.ts`) |
 | Signed evidence bundles | `src/report/dsse.ts`, `--sign-key`, `verify-bundle --key` | DSSE PAE spec vector, tamper/re-sign tests (`test/dsse.test.ts`); manual cosign v2.6.5 cross-check |
+| Prometheus metrics | `src/api/metrics.ts`, `GET /api/metrics` | Exposition parsing, label escaping, TTL / single-flight / backoff tests (`test/metrics.test.ts`); OpenAPI route coverage |

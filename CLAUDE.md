@@ -14,7 +14,7 @@ src/checks/              pure checks (snapshot → findings); registry in index.
 src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo), scan
 src/report/              renderers (markdown, html, sarif, oscal), bundle (evidence + verify; optional DSSE signing in dsse.ts), diff, history, import-sarif, netinspect, provenance
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
-src/api/                 app.ts (routes, bearer auth), server.ts (entry)
+src/api/                 app.ts (routes, bearer auth), server.ts (entry), metrics.ts (Prometheus exposition)
 src/cli.ts               `noip scan | render | diff | history | policy | fix | verify-bundle | mcp`
 src/policy.ts            ValidatingAdmissionPolicy (CEL) export; parity-tested against the checks
 src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)

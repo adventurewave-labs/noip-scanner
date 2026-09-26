@@ -323,9 +323,12 @@ NOIP_API_TOKEN=$(openssl rand -hex 24) node dist/api/server.js     # or docker b
 | `GET /api/scan[?includeSystem=1]` | bearer | Full report. Returns 503 `K8sUnavailable` when there is no cluster. |
 | `GET /api/discovery/cluster` | bearer | Version, node, namespace, pod and NetworkPolicy counts |
 | `POST /api/report/explain` | bearer | Report plus explanation. Returns 501 if no LLM key is set. |
+| `GET /api/metrics` | bearer | Prometheus metrics: `noip_up`, `noip_posture_score`, `noip_findings{severity}`, `noip_check_failed{check}`, `noip_controls_failed`, `noip_kubernetes_support_days_left`, `noip_namespace_pod_security_level{namespace}` and more. See below. |
 | `GET /` | open | In demo mode only, a public HTML page with a **DEMO MODE** banner |
 
 The server refuses to start without `NOIP_API_TOKEN` (or `NOIP_API_TOKEN_FILE`), which must be at least 16 characters. `deploy/deployment.yaml` mounts the token as a file, so NOIP does not trip its own NOIP-POD-009 check. There is no user database, no MFA, and no Mongo or Redis ([ADR-0002](docs/adr/0002-bearer-token-auth.md)).
+
+**Prometheus.** `/api/metrics` reuses one scan for `NOIP_METRICS_TTL` seconds (default 300, minimum 10), and concurrent scrapes share a single in-flight scan, so a 15-second scrape interval doesn't turn into a full cluster list every 15 seconds. If a scan fails, `noip_up` becomes 0 with an `error` label and the last good values stay visible; retries happen at most every 30 seconds. Example scrape job: `authorization: {credentials_file: /etc/noip/token}` against `/api/metrics`. Alert on `noip_up == 0`, a drop in `noip_posture_score`, or `noip_findings{severity="critical"} > 0`.
 
 **Railway preview:** `railway.json` builds the Dockerfile. Set `NOIP_DEMO=1` and `NOIP_API_TOKEN` on the service. No cluster credential ever goes to Railway.
 

@@ -27,7 +27,7 @@ const live = () => createApp({ token: TOKEN, demo: false, snapshot: down, probe:
 
 /** Validate a response body against the schema the spec declares for (path, method, status). */
 function conforms(path: string, method: 'get' | 'post', status: number, body: unknown) {
-  const op = (spec.paths as Record<string, Record<string, { responses: Record<string, { content?: { 'application/json': { schema: object } } }> }>>)[path]![method]!;
+  const op = (spec.paths as unknown as Record<string, Record<string, { responses: Record<string, { content?: { 'application/json': { schema: object } } }> }>>)[path]![method]!;
   const schema = op.responses[String(status)]?.content?.['application/json']?.schema;
   if (!schema) throw new Error(`spec has no JSON response for ${method.toUpperCase()} ${path} ${status}`);
   const ajv = new Ajv2020({ allErrors: true, strict: false });
@@ -59,7 +59,7 @@ describe('OpenAPI document', () => {
       if (layer.route) for (const m of Object.keys(layer.route.methods)) routes.push(`${m} ${layer.route.path}`);
       for (const sub of layer.handle?.stack ?? []) if (sub.route) for (const m of Object.keys(sub.route.methods)) routes.push(`${m} /api${sub.route.path}`);
     }
-    expect(routes.sort()).toEqual(['get /', 'get /api/discovery/cluster', 'get /api/scan', 'get /health', 'get /openapi.json', 'post /api/report/explain']);
+    expect(routes.sort()).toEqual(['get /', 'get /api/discovery/cluster', 'get /api/metrics', 'get /api/scan', 'get /health', 'get /openapi.json', 'post /api/report/explain']);
     const documented = Object.entries(spec.paths).flatMap(([p, ops]) => Object.keys(ops).map((m) => `${m} ${p}`));
     for (const r of routes.filter((x) => x !== 'get /')) expect(documented).toContain(r);
   });

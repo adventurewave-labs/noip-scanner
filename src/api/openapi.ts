@@ -101,6 +101,18 @@ export function openApiDocument() {
           responses: { '200': json(ref('Cluster'), 'Cluster facts.'), ...common },
         },
       },
+      '/api/metrics': {
+        get: {
+          operationId: 'metrics',
+          summary: 'Prometheus metrics for the latest scan (score, findings by severity, failed checks, Pod Security readiness). The scan is cached for NOIP_METRICS_TTL seconds (default 300); a failed scan sets noip_up 0 and keeps the last good values.',
+          security: [{ bearer: [] }],
+          responses: {
+            '200': { description: 'Prometheus text exposition format 0.0.4.', content: { 'text/plain': { schema: { type: 'string' } } } },
+            '401': common['401'],
+            '429': common['429'],
+          },
+        },
+      },
       '/api/report/explain': {
         post: {
           operationId: 'explain',

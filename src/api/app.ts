@@ -13,7 +13,8 @@ import { scannerInfo } from '../report/provenance.js';
 import { openApiDocument } from './openapi.js';
 import { buildReport, getSnapshot, type ScanOptions } from '../scan.js';
 import { loadIgnoreFile } from '../suppressions.js';
-import type { ClusterSnapshot, DataSource } from '../types.js';
+import type { ClusterSnapshot, DataSource, Report } from '../types.js';
+import { METRICS_CONTENT_TYPE, renderMetrics, type ScrapeState } from './metrics.js';
 
 export interface AppDeps {
   /** Bearer token required on every /api/* route. */
@@ -27,7 +28,14 @@ export interface AppDeps {
   ignoreFile?: string;
   /** Reachability probe for /health; defaults to GET /version against the current kubeconfig. */
   probe?: () => Promise<string>;
+  /** How long /api/metrics reuses a successful scan (NOIP_METRICS_TTL, seconds; default 300). */
+  metricsTtlSeconds?: number;
+  /** Injected clock for tests (ms since epoch). */
+  now?: () => number;
 }
+
+/** After a failed scan, /api/metrics retries at most this often, so a scrape loop can't hammer a sick API server. */
+const METRICS_RETRY_MS = 30_000;
 
 const sha = (s: string) => createHash('sha256').update(s).digest();
 
@@ -112,6 +120,37 @@ export function createApp(deps: AppDeps) {
     } catch (err) {
       next(err);
     }
+  });
+
+  // Prometheus: cached scan, one scan in flight at a time, failures reported as noip_up 0 with the last good values.
+  const clock = deps.now ?? Date.now;
+  const ttlMs = (deps.metricsTtlSeconds ?? 300) * 1000;
+  let last: { report: Report; at: number } | undefined;
+  let state: ScrapeState = { up: false };
+  let attemptAt = -Infinity;
+  let inflight: Promise<void> | undefined;
+  const refresh = async () => {
+    const t0 = clock();
+    attemptAt = t0;
+    try {
+      const opts = { demo: deps.demo, suppressions: deps.ignoreFile ? loadIgnoreFile(deps.ignoreFile) : undefined };
+      const { snapshot, source } = await getSnap(opts);
+      last = { report: buildReport(snapshot, source, opts), at: clock() };
+      state = { up: true, durationSeconds: (clock() - t0) / 1000 };
+    } catch (err) {
+      state = { up: false, lastError: err instanceof K8sUnavailable ? 'K8sUnavailable' : 'Error' };
+      log('warn', `metrics scan failed: ${(err as Error).message}`);
+    }
+  };
+  api.get('/metrics', async (_req, res) => {
+    const now = clock();
+    const stale = !last || now - last.at >= ttlMs;
+    const mayRetry = state.up || now - attemptAt >= METRICS_RETRY_MS;
+    if (stale && mayRetry) {
+      inflight ??= refresh().finally(() => (inflight = undefined));
+      await inflight;
+    }
+    res.set('Content-Type', METRICS_CONTENT_TYPE).send(renderMetrics(last?.report, state));
   });
 
   api.get('/discovery/cluster', async (req, res, next) => {
