@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T21:19:09.241Z |
+| Fecha del análisis | 2026-09-26T21:28:15.960Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `62f9c2bef9ff` |
+| Escáner | noip 0.1.0 @ `5bbfaf7deaf7` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
@@ -274,6 +274,29 @@ Mejoras rápidas con corrección determinista: **12** · requieren una decisión
 | CIS-5.4.1 | Preferir secretos como archivos en lugar de variables de entorno | ❌ no cumple | 2 | CC6.1, CC6.7 | 164.312(a)(2)(iv), 164.312(e)(2)(ii) |
 
 _Los identificadores de SOC 2, HIPAA, NSA/CISA y NIST SP 800-190 son mapeos de referencia, no una certificación. NOIP revisa un subconjunto de cargas de trabajo del CIS Kubernetes Benchmark nivel 1 y no evalúa controles del plano de control, de nodos ni de procesos._
+
+## Cadenas de riesgo
+
+_Hallazgos que se combinan: juntos dan a un atacante más que cada uno por separado. Se derivan de lo que NOIP ya lee; no forman parte de la puntuación. Las descripciones de cada cadena están en inglés, igual que la evidencia._
+
+### crítico: Workloads running as ci/default carry a cluster-admin token
+
+1. 1 workload(s) run as ServiceAccount ci/default with its token mounted (Pod/ci/debug-shell).
+2. ClusterRoleBinding ci-deployer-admin grants that ServiceAccount cluster-admin.
+3. At least one of them also has host-level access (NOIP-POD-001), so the node itself is exposed as well.
+
+Hallazgos: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin`
+
+> Assumes the ServiceAccount itself does not set automountServiceAccountToken: false (NOIP does not read ServiceAccount objects).
+
+### medio: Every workload in payments without its own ServiceAccount inherits Role config-reader
+
+1. RoleBinding payments/payments-reader grants Role config-reader to ServiceAccount payments/default.
+2. 1 workload(s) run as payments/default with its token mounted (Deployment/payments/api), so each of them holds those permissions, and so will any new workload that doesn't name a ServiceAccount.
+
+Hallazgos: `NOIP-RBAC-003:RoleBinding/payments/payments-reader`
+
+> Assumes the ServiceAccount itself does not set automountServiceAccountToken: false (NOIP does not read ServiceAccount objects).
 
 ## Preparación para Pod Security
 

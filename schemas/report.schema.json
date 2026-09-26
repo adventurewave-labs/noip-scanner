@@ -810,6 +810,61 @@
         }
       }
     },
+    "riskChains": {
+      "description": "Findings that compound into an attack path. Derived from the snapshot; never affects the score.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "title",
+          "steps",
+          "entryPoints",
+          "findingIds",
+          "caveat"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "entryPoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "findingIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "caveat": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "warnings": {
       "type": "array",
       "items": {

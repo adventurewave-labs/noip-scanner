@@ -66,6 +66,9 @@ export interface Strings {
   psaNote: (version: string) => string;
   psaCols: [string, string, string, string, string];
   psaUnset: string;
+  chains: string;
+  chainsNote: string;
+  chainFindings: string;
   unknown: string;
   checkTitles: Record<string, string>;
   remediations: Record<string, string>;
@@ -136,6 +139,9 @@ const EN: Strings = {
   psaNote: (v) => `The highest Pod Security Standard each namespace could enforce today without rejecting any current pod (policy version ${v}, evaluated with a port of the upstream Pod Security Admission checks). A planning aid; it does not affect the score.`,
   psaCols: ['Namespace', 'Enforced now', 'Could enforce today', 'Pods', 'Blocking the next level'],
   psaUnset: 'not set',
+  chains: 'Risk chains',
+  chainsNote: 'Findings that compound: together they give an attacker more than each does alone. Derived from what NOIP already reads; not part of the score.',
+  chainFindings: 'Findings',
   unknown: 'unknown',
   checkTitles: {},
   remediations: {},
@@ -216,6 +222,9 @@ const ES: Strings = {
   psaNote: (v) => `El estándar de Pod Security más alto que cada namespace podría aplicar hoy sin rechazar ningún pod actual (versión de política ${v}, evaluada con una adaptación de las comprobaciones oficiales de Pod Security Admission). Es una ayuda de planificación; no afecta la puntuación.`,
   psaCols: ['Namespace', 'Aplicado ahora', 'Podría aplicar hoy', 'Pods', 'Bloquea el siguiente nivel'],
   psaUnset: 'sin definir',
+  chains: 'Cadenas de riesgo',
+  chainsNote: 'Hallazgos que se combinan: juntos dan a un atacante más que cada uno por separado. Se derivan de lo que NOIP ya lee; no forman parte de la puntuación. Las descripciones de cada cadena están en inglés, igual que la evidencia.',
+  chainFindings: 'Hallazgos',
   unknown: 'desconocido',
   checkTitles: {
     'NOIP-POD-001': 'Contenedor privilegiado',

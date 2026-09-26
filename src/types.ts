@@ -123,6 +123,8 @@ export interface Report {
   suppressed?: Array<{ finding: Finding; suppression: { reason: string; owner: string; expires: string; rule: string } }>;
   /** Which Pod Security level each namespace could enforce today (a planning aid; never affects the score). */
   podSecurity?: import('./psa.js').PodSecurityReadiness;
+  /** Findings that compound into an attack path (e.g. a running workload carrying a cluster-admin token). Not scored. */
+  riskChains?: import('./chains.js').RiskChain[];
   /** Non-fatal notices, e.g. expired or stale suppressions. */
   warnings?: string[];
 }

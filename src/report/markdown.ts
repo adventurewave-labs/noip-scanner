@@ -119,6 +119,15 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
     }
   }
 
+  if (r.riskChains?.length) {
+    out.push(`## ${t.chains}`, '', `_${t.chainsNote}_`, '');
+    for (const c of r.riskChains) {
+      out.push(`### ${esc(t.sev[c.severity] ?? String(c.severity))}: ${esc(c.title)}`, '');
+      c.steps.forEach((s, i) => out.push(`${i + 1}. ${esc(s)}`));
+      out.push('', `${t.chainFindings}: ${c.findingIds.map((id) => code(id)).join(', ') || '—'}`, '', `> ${esc(c.caveat)}`, '');
+    }
+  }
+
   if (r.podSecurity?.namespaces.length) {
     out.push(`## ${t.psa}`, '', t.psaNote(esc(String(r.podSecurity.policyVersion))), '');
     out.push(`| ${t.psaCols.join(' | ')} |`, '|---|---|---|---|---|');

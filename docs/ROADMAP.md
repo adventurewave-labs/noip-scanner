@@ -96,7 +96,8 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 30 | Signed evidence bundles: DSSE envelope over the in-toto statement (Ed25519 / ECDSA P-256, operator's key); `verify-bundle --key`; cross-checked with cosign | shipped (`loop/r30-dsse`) |
 | 31 | Prometheus metrics (`GET /api/metrics`): cached scan, single-flight, failure backoff, last good values kept | shipped (`loop/r31-metrics`) |
 | 32 | Independent review #4, with fixes (8 confirmed: metrics single-flight and backoff, YAML-null PSA handling, pod-less namespace fixes, OSCAL accepted risk, two markdown escapes, half-written signed bundles) | shipped (`loop/r32-review4`) |
-| 33 | Wrap-up | planned |
+| 33 | Risk chains: a running workload carrying a cluster-admin token; default-SA Role inheritance. Deterministic, not scored | shipped (`loop/r33-risk-chains`) |
+| 34 | Wrap-up | planned |
 
 ## Later
 These are candidates, not commitments:

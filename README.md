@@ -88,6 +88,15 @@ Each pod is attributed to the workload that owns it:
 
 Reports include `provenance.cluster.versionSupport`: whether the control-plane minor version is supported upstream, ending within 90 days, or past end of life, plus whether a newer patch exists. The data is a pinned copy of [kubernetes.io/releases](https://kubernetes.io/releases) taken on 2026-09-26, in `src/k8s/support.ts`; refresh it when upstream releases a new minor version. This is reported as a fact, not a check, so it doesn't change the score or use one of the 15 check slots. The markdown and HTML reports show a banner for it in English and Spanish. EKS, GKE, AKS and other managed platforms publish their own, often longer, support schedules, and the report says so.
 
+## Risk chains
+
+Some findings compound. Reports include a `riskChains` section for two paths NOIP can prove from what it already reads:
+
+- **A running workload carries a cluster-admin token.** A ServiceAccount, directly or through `system:serviceaccounts[:<ns>]` or `system:authenticated`, is bound to `cluster-admin`, and workloads run as it with the token mounted. The severity is critical, and the chain notes when one of those workloads also has host-level access (POD-001, POD-002 or POD-004).
+- **A namespace's default ServiceAccount has a Role.** Every workload that doesn't name its own ServiceAccount, including future ones, inherits that Role. The severity is medium.
+
+Each chain lists its entry points and the findings it is built from. Chains don't change the score. They appear in the markdown and HTML reports and as `noip_risk_chains{severity}` in `/api/metrics`. The chain descriptions are English in Spanish reports too, like evidence. **Limit:** NOIP doesn't read ServiceAccount objects, so an SA-level `automountServiceAccountToken: false` isn't visible; only the pod-level setting is honoured, and each chain says so.
+
 ## Pod Security readiness
 
 Reports include a `podSecurity` section: for each namespace, the highest [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/) (`privileged`, `baseline` or `restricted`) it could enforce today without rejecting any of its current pods, plus the workloads that block the next level and why. It answers the question NOIP-NS-001 raises: which label is safe to set?

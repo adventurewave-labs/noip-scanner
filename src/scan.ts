@@ -6,6 +6,7 @@ import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
 import { parseVersion, versionSupport } from './k8s/support.js';
 import { podSecurityReadiness, PSA_LATEST_MINOR } from './psa.js';
+import { riskChains } from './chains.js';
 import { workloadOf } from './checks/workload.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
@@ -104,6 +105,7 @@ export function buildReport(
   const failedWeight = checks.filter((c) => failedChecks.has(c.id)).reduce((sum, c) => sum + SEVERITY_WEIGHT[c.severity], 0);
   const score = totalWeight ? Math.round((100 * (totalWeight - failedWeight)) / totalWeight) : 100;
   const bySeverity = Object.fromEntries(SEVERITIES.map((s) => [s, findings.filter((f) => f.severity === s).length])) as Record<Severity, number>;
+  const chains = riskChains(snapshot, findings, ctx.excludedNamespaces);
   const info = scannerInfo();
   const support = versionSupport(snapshot.serverVersion.gitVersion, opts.now);
 
@@ -136,6 +138,7 @@ export function buildReport(
     controls,
     mappingDisclaimer: MAPPING_DISCLAIMER,
     ...(podSecurity.namespaces.length ? { podSecurity } : {}),
+    ...(chains.length ? { riskChains: chains } : {}),
     ...(sup ? { suppressed: sup.suppressed } : {}),
     ...(sup?.warnings.length ? { warnings: sup.warnings } : {}),
   };

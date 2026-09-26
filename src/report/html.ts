@@ -101,6 +101,16 @@ export function renderHtml(r: Report, lang: Lang = 'en'): string {
     )
     .join('');
   const [netTitle, netNote] = t.network.split(' (');
+  const chains = r.riskChains?.length
+    ? `<h2>${esc(t.chains)}</h2><p class="muted">${esc(t.chainsNote)}</p>${r.riskChains
+        .map(
+          (c) =>
+            `<div class="tile" style="margin:10px 0"><p><span class="sev ${esc(c.severity)}">${esc(t.sev[c.severity] ?? c.severity)}</span> <b>${esc(c.title)}</b></p><ol>${c.steps
+              .map((s) => `<li>${esc(s)}</li>`)
+              .join('')}</ol><p class="muted">${esc(t.chainFindings)}: ${c.findingIds.map((id) => `<a href="#${esc(id)}"><code>${esc(id)}</code></a>`).join(', ') || '—'}<br>${esc(c.caveat)}</p></div>`,
+        )
+        .join('')}`
+    : '';
   const psa = r.podSecurity?.namespaces.length
     ? `<h2>${esc(t.psa)}</h2><p class="muted">${esc(t.psaNote(r.podSecurity.policyVersion))}</p><div class="table-wrap"><table><thead><tr>${t.psaCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.podSecurity.namespaces
         .map(
@@ -138,7 +148,7 @@ ${suppressed}${warnings}
     )
     .join('')}</tbody></table></div>
 <p class="muted"><i>${esc(L.disclaimer(r.mappingDisclaimer))}</i></p>
-${psa}${imported}${network}
+${chains}${psa}${imported}${network}
 <h2>${esc(t.provenance)}</h2><dl>
 <dt>${esc(t.scanner)}</dt><dd>noip ${esc(p.scanner.version)} @ <code>${esc(p.scanner.gitSha)}</code></dd>
 <dt>${esc(t.cluster)}</dt><dd>${esc(p.cluster.context ?? 'n/a')}, Kubernetes ${esc(p.cluster.serverVersion)}${p.cluster.platform ? ` (${esc(p.cluster.platform)})` : ''}, ${esc(t.nodes(p.cluster.nodeCount))}</dd>

@@ -24,6 +24,7 @@ src/fleet.ts             multi-context scans (one report per cluster + fleet sum
 src/mcp.ts               MCP server: scan, list_checks, explain_finding (read-only)
 src/api/openapi.ts       OpenAPI 3.1 document (/openapi.json); contract-tested
 src/checks/references.ts NSA/CISA + NIST SP 800-190 reference mappings
+src/chains.ts            risk chains (findings that compound: SA tokens + RBAC); not a check
 src/psa.ts               Pod Security Standards (port of upstream PSA checks) + per-namespace readiness; not a check
 test/fixtures/psa/                  upstream PSA conformance fixtures (Apache-2.0, vendored unmodified)
 fixtures/demo-cluster.json          demo-mode data (fictional)

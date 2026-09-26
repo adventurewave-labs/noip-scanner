@@ -49,3 +49,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | Signed evidence bundles | `src/report/dsse.ts`, `--sign-key`, `verify-bundle --key` | DSSE PAE spec vector, tamper/re-sign tests (`test/dsse.test.ts`); manual cosign v2.6.5 cross-check |
 | Prometheus metrics | `src/api/metrics.ts`, `GET /api/metrics` | Exposition parsing, label escaping, TTL / single-flight / backoff tests (`test/metrics.test.ts`); OpenAPI route coverage |
 | Fourth independent review | `test/review4-fixes.test.ts`, `test/metrics.test.ts` | A regression test for each confirmed defect |
+| Risk chains | `src/chains.ts`, report `riskChains` | Demo paths, SA groups, replicas, automount, namespace scoping, escaping (`test/chains.test.ts`) |

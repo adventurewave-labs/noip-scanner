@@ -60,6 +60,7 @@ export function renderMetrics(r: Report | undefined, state: ScrapeState): string
       [{ minor: r.provenance.cluster.versionSupport.minor }, r.provenance.cluster.versionSupport.daysLeft],
     ]);
   }
+  metric('noip_risk_chains', 'gauge', 'Risk chains (findings that compound into an attack path) by severity.', SEVERITIES.map((s) => [{ severity: s }, (r.riskChains ?? []).filter((c) => c.severity === s).length]));
   if (r.podSecurity?.namespaces.length) {
     metric(
       'noip_namespace_pod_security_level',
