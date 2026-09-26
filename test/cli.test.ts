@@ -178,3 +178,17 @@ describe('noip scan -o html', () => {
     expect(out.startsWith('<!doctype html>')).toBe(true);
   });
 });
+
+describe('noip scan --bundle / verify-bundle', () => {
+  it('writes a bundle and verifies it; tampering exits 4', async () => {
+    const d = join(mkdtempSync(join(tmpdir(), 'noip-')), 'bundle');
+    expect(await runScan({ output: 'json', demo: true, bundle: d })).toBe(EXIT.OK);
+    expect(err).toMatch(/evidence bundle written/);
+    await main(['node', 'noip', 'verify-bundle', d]);
+    expect(process.exitCode ?? 0).toBe(EXIT.OK);
+    writeFileSync(join(d, 'report.md'), 'tampered');
+    await main(['node', 'noip', 'verify-bundle', d]);
+    expect(process.exitCode).toBe(EXIT.VERIFY_FAILED);
+    expect(err).toMatch(/bundle FAIL: hash mismatch: report.md/);
+  });
+});

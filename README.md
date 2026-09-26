@@ -37,10 +37,11 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `--min-severity <severity>` | Only report findings at or above this severity. The summary and controls are computed from the kept findings, and the threshold is recorded in `provenance.minSeverity`. |
 | `--fail-on <severity>` | Exit `2` if any finding is at or above this severity. Useful as a pipeline gate. |
 | `--manifests <paths...>` | Scan YAML files or directories offline instead of a cluster (see [below](#shift-left-manifest-scanning)). `-` reads stdin. |
+| `--bundle <dir>` | Also write an audit evidence bundle (see [below](#audit-evidence-bundle)). |
 | `--ignore-file <path>` / `--no-ignore` | Accepted-risk suppressions (see [below](#suppressions-accepted-risk)). `./.noip-ignore.yaml` is loaded automatically if it exists. |
 | `--demo` | Scan `fixtures/demo-cluster.json` instead of a cluster (same as `NOIP_DEMO=1`). |
 
-Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · `3` Kubernetes unreachable or forbidden.
+Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · `3` Kubernetes unreachable or forbidden · `4` `verify-bundle` failed.
 
 ## Checks
 
@@ -79,6 +80,23 @@ Reports validate against [`schemas/report.schema.json`](schemas/report.schema.js
 - **`controls[]`:** pass/fail per CIS control, with SOC 2 / HIPAA reference mappings and the disclaimer `reference mappings, not an attestation`.
 
 A sample is in [`docs/examples/demo-report.md`](docs/examples/demo-report.md).
+
+## Audit evidence bundle
+
+```bash
+noip scan --kubeconfig noip.kubeconfig --bundle evidence/2026-09-acme
+noip verify-bundle evidence/2026-09-acme          # or: (cd evidence/2026-09-acme && sha256sum -c SHA256SUMS)
+```
+
+The bundle directory holds:
+
+- `report.json`, `report.md`, `report.html` and `report.sarif`
+- `SHA256SUMS`
+- `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the four reports and whose predicate is the scan's provenance
+
+`verify-bundle` does four things: it recomputes every hash, rejects extra files and path tricks, checks that the in-toto subjects match the sums, and cross-checks `report.json` against the statement. On failure it exits `4`.
+
+The bundle is **unsigned** because NOIP holds no keys. If an engagement needs signatures, sign the statement with your own tooling, for example `cosign attest-blob --predicate provenance.intoto.json …`. NOIP refuses to write into a non-empty directory, so evidence from different scans never gets mixed.
 
 ## Posture drift: `noip diff`
 

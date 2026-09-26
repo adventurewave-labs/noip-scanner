@@ -5,6 +5,7 @@ import { Command, Option } from 'commander';
 import { K8sUnavailable } from './errors.js';
 import { explain } from './llm/explain.js';
 import { createProvider } from './llm/provider.js';
+import { verifyBundle, writeBundle } from './report/bundle.js';
 import { diffReports, regressed, renderDiffMarkdown } from './report/diff.js';
 import { renderHtml } from './report/html.js';
 import { renderMarkdown } from './report/markdown.js';
@@ -15,7 +16,7 @@ import { buildReport, getSnapshot, isDemoMode } from './scan.js';
 import { DEFAULT_IGNORE_FILE, loadIgnoreFile } from './suppressions.js';
 import { SEVERITIES, type Report, type Severity } from './types.js';
 
-export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE: 3 } as const;
+export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE: 3, VERIFY_FAILED: 4 } as const;
 
 interface ScanFlags {
   kubeconfig?: string;
@@ -30,6 +31,7 @@ interface ScanFlags {
   manifests?: string[];
   ignoreFile?: string;
   ignore?: boolean;
+  bundle?: string;
   minSeverity?: Severity;
   failOn?: Severity;
 }
@@ -64,6 +66,10 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     }
   }
 
+  if (flags.bundle) {
+    writeBundle(flags.bundle, report);
+    warn(`evidence bundle written to ${flags.bundle} (verify: noip verify-bundle ${flags.bundle}  or  sha256sum -c SHA256SUMS)`);
+  }
   const body =
     flags.output === 'md'
       ? renderMarkdown(report)
@@ -95,6 +101,7 @@ export function buildCli(): Command {
     .option('--include-system', 'also scan kube-system, kube-public and kube-node-lease')
     .option('--exclude-namespace <ns...>', 'additional namespaces to skip')
     .option('--manifests <paths...>', 'scan YAML files/directories offline instead of a cluster ("-" reads stdin, e.g. helm template … | noip scan --manifests -)')
+    .option('--bundle <dir>', 'also write an audit evidence bundle: json/md/html/sarif + SHA256SUMS + in-toto statement')
     .option('--ignore-file <path>', `accepted-risk suppressions with reason/owner/expiry (default: ./${DEFAULT_IGNORE_FILE} if present)`)
     .option('--no-ignore', 'ignore all suppressions and report every finding')
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
@@ -120,6 +127,19 @@ export function buildCli(): Command {
       process.stdout.write(flags.output === 'json' ? JSON.stringify(d, null, 2) + '\n' : renderDiffMarkdown(d));
       warn(`diff: ${d.new.length} new, ${d.resolved.length} resolved, score ${d.scoreDelta >= 0 ? '+' : ''}${d.scoreDelta}`);
       if (flags.failOn && regressed(d, flags.failOn)) process.exitCode = EXIT.FINDINGS_AT_THRESHOLD;
+    });
+
+  program
+    .command('verify-bundle')
+    .description('Verify an evidence bundle: file hashes, in-toto subjects and report provenance')
+    .argument('<dir>', 'bundle directory written by `noip scan --bundle`')
+    .action((dir: string) => {
+      const v = verifyBundle(dir);
+      if (v.ok) warn(`bundle OK: ${v.files} files verified`);
+      else {
+        for (const p of v.problems) warn(`bundle FAIL: ${p}`);
+        process.exitCode = EXIT.VERIFY_FAILED;
+      }
     });
 
   program

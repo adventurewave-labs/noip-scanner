@@ -68,7 +68,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 |---|---|---|
 | 8 | Supply chain: CycloneDX SBOM, license allowlist, `npm audit` for vulnerabilities and signatures, Docker `--ignore-scripts` | shipped (`loop/r8-supply-chain`) |
 | 9 | Self-contained HTML report | shipped (`loop/r9-html`) |
-| 10 | Audit evidence bundle: SHA256SUMS and an in-toto provenance statement | planned |
+| 10 | Audit evidence bundle: SHA256SUMS and an in-toto provenance statement, plus `noip verify-bundle` | shipped (`loop/r10-bundle`) |
 | 11 | Remediation patches: JSON Patch per finding, `noip fix` for manifests | planned |
 | 12 | Import third-party SARIF (Trivy, kubescape) | planned |
 | 13 | Multi-context scans | planned |
