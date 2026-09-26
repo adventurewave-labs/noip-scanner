@@ -60,7 +60,13 @@ export function parseManifestText(text: string, file: string): Array<{ obj: K8sO
   const lineOf = (n: YamlNode | null | undefined) => (n?.range ? lc.linePos(n.range[0]).line : 1);
   for (const doc of Array.isArray(docs) ? docs : [docs]) {
     if (doc.errors.length) throw new ManifestError(`${file}: ${doc.errors[0]!.message.split('\n')[0]}`);
-    const obj = doc.toJS() as K8sObject | null;
+    let obj: K8sObject | null;
+    try {
+      obj = doc.toJS({ maxAliasCount: 100 }) as K8sObject | null; // bounded alias expansion (billion-laughs guard)
+    } catch (err) {
+      // e.g. unresolved alias `*x`, or alias expansion over the limit: found by the fuzz tests
+      throw new ManifestError(`${file}: ${(err as Error).message.split('\n')[0]}`);
+    }
     if (!obj || typeof obj !== 'object') continue;
     if (obj.kind === 'List' || (obj.kind?.endsWith('List') && Array.isArray(obj.items))) {
       const itemsNode = isMap(doc.contents) ? doc.contents.get('items', true) : undefined;

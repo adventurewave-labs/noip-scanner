@@ -237,6 +237,16 @@ The server refuses to start without `NOIP_API_TOKEN` (or `NOIP_API_TOKEN_FILE`),
 3. **docker-smoke:** the image refuses to start without a token; `/health` returns 200 with status `degraded`; `/api/*` returns 401 without a token and 503 without a cluster; explain returns 501; demo mode returns 200 with `source:"demo"`.
 4. **ci:** a single aggregate job. Make this the required check on `main`.
 
+`test/properties.test.ts` uses fast-check to check invariants on random clusters:
+
+- reports are always schema-valid, internally consistent and deterministic;
+- the result doesn't depend on the order pods are returned in;
+- a report diffed against itself is empty;
+- suppressions split findings into active and suppressed with nothing lost or duplicated;
+- secret values never survive redaction.
+
+It also fuzzes the manifest parser. The fuzzer has already found and fixed one real crash: an unresolved YAML alias.
+
 `test/golden.test.ts` runs the same fixture YAMLs through the checks offline, so a golden mismatch fails before kind even starts.
 
 ## Supply chain

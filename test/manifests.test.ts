@@ -67,3 +67,13 @@ describe('scan()', () => {
     expect((await scan({ manifests: [fx('misconfig')] })).source).toBe('manifests');
   });
 });
+
+describe('hostile YAML (found by fuzzing)', () => {
+  it('turns unresolved aliases into a ManifestError', () => {
+    expect(() => parseManifestText('*!', 'x.yaml')).toThrow(ManifestError);
+  });
+  it('refuses alias bombs instead of expanding them', () => {
+    const bomb = ['a: &a ["x","x","x","x","x","x","x","x","x"]', ...'bcdefghi'.split('').map((c, i) => `${c}: &${c} [${Array(9).fill(`*${'abcdefghi'[i]}`).join(',')}]`)].join('\n');
+    expect(() => parseManifestText(bomb, 'bomb.yaml')).toThrow(ManifestError);
+  });
+});
