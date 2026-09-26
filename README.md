@@ -196,6 +196,17 @@ The server refuses to start without `NOIP_API_TOKEN` (or `NOIP_API_TOKEN_FILE`),
 
 `test/golden.test.ts` runs the same fixture YAMLs through the checks offline, so a golden mismatch fails before kind even starts.
 
+## Supply chain
+
+The `supply-chain` CI job checks every PR in four ways:
+
+- `npm audit --omit=dev --audit-level=high` blocks known high/critical vulnerabilities in runtime dependencies.
+- `npm audit signatures` verifies registry signatures and provenance attestations.
+- A CycloneDX 1.5 SBOM of the runtime tree is generated and uploaded as the `sbom` artifact (`scripts/supply-chain.mjs`).
+- A license allowlist (MIT, Apache-2.0, ISC, BSD and similar permissive licenses) fails the build on anything else.
+
+In addition, GitHub Actions are pinned to commit SHAs, and the Docker runtime stage installs with `--ignore-scripts` and runs as a non-root user.
+
 ## Where it sits in the estate
 
 | Sibling | NOIP's stance |

@@ -59,6 +59,28 @@ jobs:
       - name: MCP server answers over real stdio
         run: node scripts/mcp-smoke.mjs
 
+  supply-chain:
+    name: SBOM, license and vulnerability gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: no known high/critical vulnerabilities in runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: registry signatures and provenance attestations verify
+        run: npm audit signatures
+      - name: CycloneDX SBOM + license allowlist
+        run: node scripts/supply-chain.mjs sbom.cdx.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom.cdx.json
+
   kind-scan:
     name: live scan against kind (golden)
     needs: verify
@@ -168,12 +190,13 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [verify, kind-scan, docker-smoke]
+    needs: [verify, supply-chain, kind-scan, docker-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: all required jobs passed
         run: |
           echo '${{ toJSON(needs) }}'
           test "${{ needs.verify.result }}" = success
+          test "${{ needs.supply-chain.result }}" = success
           test "${{ needs.kind-scan.result }}" = success
           test "${{ needs.docker-smoke.result }}" = success

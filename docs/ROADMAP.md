@@ -62,6 +62,23 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 
 **Why:** a scan only finds what's already running, while admission control stops a misconfigured pod before it starts. From here on, a new check has to replace or wrap an existing one (ADR-0004).
 
+## Loop 2 (2026-09-26, 12 rounds)
+
+| # | Item | Status |
+|---|---|---|
+| 8 | Supply chain: CycloneDX SBOM, license allowlist, `npm audit` for vulnerabilities and signatures, Docker `--ignore-scripts` | shipped (`loop/r8-supply-chain`) |
+| 9 | Self-contained HTML report | planned |
+| 10 | Audit evidence bundle: SHA256SUMS and an in-toto provenance statement | planned |
+| 11 | Remediation patches: JSON Patch per finding, `noip fix` for manifests | planned |
+| 12 | Import third-party SARIF (Trivy, kubescape) | planned |
+| 13 | Multi-context scans | planned |
+| 14 | Pagination and a scale benchmark | planned |
+| 15 | Property-based and fuzz tests | planned |
+| 16 | OpenAPI spec for the HTTP API | planned |
+| 17 | NSA/CISA and NIST 800-190 reference mappings | planned |
+| 18 | Independent review #2, with fixes | planned |
+| 19 | Wrap-up | planned |
+
 ## Later
 These are candidates, not commitments:
 - OpenVEX-style exception export.
