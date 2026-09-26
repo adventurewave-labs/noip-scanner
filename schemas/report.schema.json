@@ -110,7 +110,8 @@
         "findings",
         "bySeverity",
         "checksFailed",
-        "controlsFailed"
+        "controlsFailed",
+        "suppressed"
       ],
       "properties": {
         "score": {
@@ -155,6 +156,10 @@
           "minimum": 0
         },
         "controlsFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suppressed": {
           "type": "integer",
           "minimum": 0
         }
@@ -422,6 +427,143 @@
           }
         }
       ]
+    },
+    "suppressed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "finding",
+          "suppression"
+        ],
+        "properties": {
+          "finding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "checkId",
+              "title",
+              "severity",
+              "category",
+              "resource",
+              "evidence",
+              "remediation",
+              "controls"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^NOIP-[A-Z]+-[0-9]{3}:"
+              },
+              "checkId": {
+                "type": "string",
+                "pattern": "^NOIP-[A-Z]+-[0-9]{3}$"
+              },
+              "title": {
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "category": {
+                "type": "string"
+              },
+              "resource": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "namespace": {
+                    "type": "string"
+                  },
+                  "container": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "file"
+                    ],
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "line": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  }
+                }
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 1
+              },
+              "remediation": {
+                "type": "string"
+              },
+              "controls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^CIS-"
+                }
+              }
+            }
+          },
+          "suppression": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reason",
+              "owner",
+              "expires",
+              "rule"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 10
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expires": {
+                "type": "string",
+                "format": "date"
+              },
+              "rule": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

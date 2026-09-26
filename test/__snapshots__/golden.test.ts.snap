@@ -36,6 +36,7 @@ exports[`golden: demo fixture > produces a stable finding set 1`] = `
     "controlsFailed": 10,
     "findings": 21,
     "score": 13,
+    "suppressed": 0,
   },
 }
 `;

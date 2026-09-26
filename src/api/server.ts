@@ -12,7 +12,7 @@ if (token.length < 16) {
 
 const demo = isDemoMode();
 const port = Number(process.env.PORT) || 3000;
-const server = createApp({ token, demo }).listen(port, () => log('info', 'noip api listening', { port, mode: demo ? 'demo' : 'live' }));
+const server = createApp({ token, demo, ignoreFile: process.env.NOIP_IGNORE_FILE || undefined }).listen(port, () => log('info', 'noip api listening', { port, mode: demo ? 'demo' : 'live' }));
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sig, () => {

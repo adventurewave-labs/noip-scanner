@@ -10,6 +10,7 @@ import { renderSarif } from './report/sarif.js';
 import { ingestNetinspect } from './report/netinspect.js';
 import { scannerInfo } from './report/provenance.js';
 import { buildReport, getSnapshot, isDemoMode } from './scan.js';
+import { DEFAULT_IGNORE_FILE, loadIgnoreFile } from './suppressions.js';
 import { SEVERITIES, type Severity } from './types.js';
 
 export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE: 3 } as const;
@@ -25,6 +26,8 @@ interface ScanFlags {
   excludeNamespace?: string[];
   demo?: boolean;
   manifests?: string[];
+  ignoreFile?: string;
+  ignore?: boolean;
   failOn?: Severity;
 }
 
@@ -39,12 +42,14 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     excludeNamespaces: flags.excludeNamespace,
     demo,
     manifests: flags.manifests,
+    suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile),
   };
   if (flags.manifests?.length && (flags.demo || flags.kubeconfig || flags.context)) {
     throw new Error('--manifests cannot be combined with --demo, --kubeconfig or --context');
   }
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
+  for (const w of report.warnings ?? []) warn(`warning: ${w}`);
   if (flags.netinspect) report.network = ingestNetinspect(readFileSync(flags.netinspect, 'utf8'));
   if (flags.explain) {
     try {
@@ -62,7 +67,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   if (flags.out) writeFileSync(flags.out, body);
   else process.stdout.write(body);
 
-  warn(`${source} scan: ${report.summary.findings} finding(s), score ${report.summary.score}/100${flags.out ? ` -> ${flags.out}` : ''}`);
+  warn(`${source} scan: ${report.summary.findings} finding(s)${report.summary.suppressed ? ` (+${report.summary.suppressed} suppressed)` : ''}, score ${report.summary.score}/100${flags.out ? ` -> ${flags.out}` : ''}`);
   if (flags.failOn) {
     const limit = SEVERITIES.indexOf(flags.failOn);
     if (report.findings.some((f) => SEVERITIES.indexOf(f.severity) <= limit)) return EXIT.FINDINGS_AT_THRESHOLD;
@@ -84,6 +89,8 @@ export function buildCli(): Command {
     .option('--include-system', 'also scan kube-system, kube-public and kube-node-lease')
     .option('--exclude-namespace <ns...>', 'additional namespaces to skip')
     .option('--manifests <paths...>', 'scan YAML files/directories offline instead of a cluster ("-" reads stdin, e.g. helm template … | noip scan --manifests -)')
+    .option('--ignore-file <path>', `accepted-risk suppressions with reason/owner/expiry (default: ./${DEFAULT_IGNORE_FILE} if present)`)
+    .option('--no-ignore', 'ignore all suppressions and report every finding')
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
     .addOption(new Option('--fail-on <severity>', 'exit 2 if any finding is at or above this severity').choices([...SEVERITIES]))
     .action(async (flags: ScanFlags) => {

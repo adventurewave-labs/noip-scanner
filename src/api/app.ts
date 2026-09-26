@@ -11,6 +11,7 @@ import { log } from '../logger.js';
 import { renderMarkdown } from '../report/markdown.js';
 import { scannerInfo } from '../report/provenance.js';
 import { buildReport, getSnapshot, type ScanOptions } from '../scan.js';
+import { loadIgnoreFile } from '../suppressions.js';
 import type { ClusterSnapshot, DataSource } from '../types.js';
 
 export interface AppDeps {
@@ -21,6 +22,8 @@ export interface AppDeps {
   snapshot?: (opts: ScanOptions & { demo?: boolean }) => Promise<{ snapshot: ClusterSnapshot; source: DataSource }>;
   /** Resolves the LLM provider or throws LLMNotConfigured. */
   provider?: () => Promise<LLMProvider>;
+  /** Operator-provided suppressions file (NOIP_IGNORE_FILE). */
+  ignoreFile?: string;
   /** Reachability probe for /health; defaults to GET /version against the current kubeconfig. */
   probe?: () => Promise<string>;
 }
@@ -54,7 +57,12 @@ export function createApp(deps: AppDeps) {
     });
   }
 
-  const scanOpts = (req: Request): ScanOptions & { demo: boolean } => ({ demo: deps.demo, includeSystemNamespaces: req.query.includeSystem === '1' });
+  // Suppressions for the API come only from an operator-set file (NOIP_IGNORE_FILE), never from the request.
+  const scanOpts = (req: Request): ScanOptions & { demo: boolean } => ({
+    demo: deps.demo,
+    includeSystemNamespaces: req.query.includeSystem === '1',
+    suppressions: deps.ignoreFile ? loadIgnoreFile(deps.ignoreFile) : undefined,
+  });
 
   app.get('/', (_req, res) => {
     if (!deps.demo) return void res.json({ name: 'noip', description: 'Read-only Kubernetes posture scanner', health: '/health', api: '/api (bearer token required)' });

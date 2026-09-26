@@ -27,7 +27,8 @@ export function renderMarkdown(r: Report): string {
     '',
     `Score **${r.summary.score}/100** · ${r.summary.findings} finding(s) · ` +
       `${r.summary.bySeverity.critical} critical, ${r.summary.bySeverity.high} high, ${r.summary.bySeverity.medium} medium, ${r.summary.bySeverity.low} low · ` +
-      `${r.summary.checksFailed}/${p.checksRun.length} checks failed · ${r.summary.controlsFailed}/${r.controls.length} controls failed`,
+      `${r.summary.checksFailed}/${p.checksRun.length} checks failed · ${r.summary.controlsFailed}/${r.controls.length} controls failed` +
+      (r.summary.suppressed ? ` · ${r.summary.suppressed} suppressed (accepted risk, listed below)` : ''),
     '',
   );
 
@@ -54,6 +55,13 @@ export function renderMarkdown(r: Report): string {
       '',
     );
   }
+
+  if (r.suppressed?.length) {
+    out.push('## Suppressed (accepted risk)', '', '| Finding | Reason | Owner | Expires |', '|---|---|---|---|');
+    for (const x of r.suppressed) out.push(`| \`${x.finding.id}\` | ${esc(x.suppression.reason)} | ${esc(x.suppression.owner)} | ${x.suppression.expires} |`);
+    out.push('');
+  }
+  if (r.warnings?.length) out.push('## Warnings', '', ...r.warnings.map((w) => `- ${w}`), '');
 
   out.push('## Controls', '', '| Control | Title | Status | Findings | SOC 2 (ref) | HIPAA (ref) |', '|---|---|---|---|---|---|');
   for (const c of r.controls) {

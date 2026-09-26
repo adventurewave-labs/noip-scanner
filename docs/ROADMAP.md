@@ -15,7 +15,7 @@ The command is `noip scan --manifests <path>`. It runs the same pure checks over
 **Why:** misconfigurations get caught in the PR, before they reach a cluster. This comes almost for free because the checks are already pure functions over a snapshot.
 
 ## 3. Suppressions with accountability
-Status: planned
+Status: shipped (`loop/r3-suppressions`)
 
 Suppressions live in a `.noip-ignore.yaml` file. Each entry needs a finding ID or check-plus-resource glob, a `reason`, an `owner` and an `expires` date. Suppressed findings are kept in the report under `suppressed[]`, with the reason attached. When a suppression expires, the finding becomes active again and a warning is printed.
 

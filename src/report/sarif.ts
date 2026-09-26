@@ -66,17 +66,28 @@ export function renderSarif(r: Report, checks: readonly Check[] = ALL_CHECKS): L
           score: r.summary.score,
           mappingDisclaimer: r.mappingDisclaimer,
         },
-        results: r.findings.map((f) => ({
-          ruleId: f.checkId,
-          ruleIndex: index.get(f.checkId),
-          level: LEVEL[f.severity],
-          message: { text: `${f.title}: ${f.evidence}` },
-          locations: location(f),
-          // Stable across runs so re-scans update rather than duplicate alerts.
-          partialFingerprints: { 'noipFindingId/v1': f.id },
-          properties: { severity: f.severity, controls: f.controls, source: r.source },
-        })),
+        results: [
+          ...r.findings.map((f) => toResult(f, index, r.source)),
+          // Suppressed findings stay visible as SARIF suppressions (status accepted) so tools show them as dismissed.
+          ...(r.suppressed ?? []).map((x) => ({
+            ...toResult(x.finding, index, r.source),
+            suppressions: [{ kind: 'external' as const, status: 'accepted' as const, justification: `${x.suppression.reason} (owner ${x.suppression.owner}, expires ${x.suppression.expires})` }],
+          })),
+        ],
       },
     ],
+  };
+}
+
+function toResult(f: Finding, index: Map<string, number>, source: string): Result {
+  return {
+    ruleId: f.checkId,
+    ruleIndex: index.get(f.checkId),
+    level: LEVEL[f.severity],
+    message: { text: `${f.title}: ${f.evidence}` },
+    locations: location(f),
+    // Stable across runs so re-scans update rather than duplicate alerts.
+    partialFingerprints: { 'noipFindingId/v1': f.id },
+    properties: { severity: f.severity, controls: f.controls, source },
   };
 }

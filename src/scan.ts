@@ -5,6 +5,7 @@ import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
 import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
+import { applySuppressions, type Suppression } from './suppressions.js';
 import {
   SEVERITIES,
   type ClusterSnapshot,
@@ -21,6 +22,8 @@ export interface ScanOptions extends KubeOptions {
   /** Extra namespaces to skip. */
   excludeNamespaces?: string[];
   now?: Date;
+  /** Accepted-risk entries (see src/suppressions.ts). Expired ones are ignored and reported as warnings. */
+  suppressions?: Suppression[];
 }
 
 const SEVERITY_WEIGHT: Record<Severity, number> = { critical: 25, high: 15, medium: 8, low: 3 };
@@ -65,7 +68,9 @@ export function buildReport(
     }
   }
   const sevRank = (s: Severity) => SEVERITIES.indexOf(s);
-  const findings = [...byId.values()].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
+  const all = [...byId.values()].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
+  const sup = opts.suppressions ? applySuppressions(all, opts.suppressions, opts.now) : undefined;
+  const findings = sup ? sup.active : all;
 
   const controlIds = [...new Set(checks.flatMap((c) => c.controls))].sort();
   const controls: ControlResult[] = controlIds.map((cid) => {
@@ -110,10 +115,13 @@ export function buildReport(
       bySeverity,
       checksFailed: failedChecks.size,
       controlsFailed: controls.filter((c) => c.status === 'fail').length,
+      suppressed: sup?.suppressed.length ?? 0,
     },
     findings,
     controls,
     mappingDisclaimer: MAPPING_DISCLAIMER,
+    ...(sup ? { suppressed: sup.suppressed } : {}),
+    ...(sup?.warnings.length ? { warnings: sup.warnings } : {}),
   };
 }
 

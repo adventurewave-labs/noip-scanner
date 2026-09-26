@@ -88,10 +88,16 @@ export interface Report {
     bySeverity: Record<Severity, number>;
     checksFailed: number;
     controlsFailed: number;
+    /** Findings hidden by a live suppression (accepted risk). Not counted anywhere else in the summary. */
+    suppressed: number;
   };
   findings: Finding[];
   controls: ControlResult[];
   mappingDisclaimer: string;
   network?: NetworkSection;
   explanation?: Explanation | null;
+  /** Accepted-risk findings, each with the suppression that hid it (reason, owner, expiry). */
+  suppressed?: Array<{ finding: Finding; suppression: { reason: string; owner: string; expires: string; rule: string } }>;
+  /** Non-fatal notices, e.g. expired or stale suppressions. */
+  warnings?: string[];
 }

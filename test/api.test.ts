@@ -115,3 +115,15 @@ describe('misc routes', () => {
     expect(r.body).toEqual({ error: 'Internal', message: 'Internal server error' });
   });
 });
+
+describe('API suppressions come from the operator file only', () => {
+  it('applies NOIP_IGNORE_FILE', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const f = `${mkdtempSync(`${tmpdir()}/noip-`)}/ign.yaml`;
+    writeFileSync(f, 'suppressions:\n  - check: NOIP-NET-001\n    reason: namespaces are isolated by a service mesh\n    owner: platform\n    expires: 2099-01-01\n');
+    const r = await request(demo({ ignoreFile: f })).get('/api/scan').set(auth).expect(200);
+    expect(r.body.summary.suppressed).toBeGreaterThan(0);
+    expect(r.body.findings.some((x: { checkId: string }) => x.checkId === 'NOIP-NET-001')).toBe(false);
+  });
+});

@@ -102,3 +102,19 @@ describe('noip scan --manifests', () => {
     expect(out).toMatch(/10-bad-pods\.yaml:4\)/);
   });
 });
+
+describe('noip scan suppressions', () => {
+  it('applies --ignore-file, warns on expiry, and --no-ignore disables it', async () => {
+    const { mkdtempSync: mk, writeFileSync: wr } = await import('node:fs');
+    const f = join(mk(join(tmpdir(), 'noip-')), 'ign.yaml');
+    wr(f, 'suppressions:\n  - check: NOIP-POD-004\n    reason: node agents need the host network\n    owner: sre\n    expires: 2099-01-01\n  - check: NOIP-POD-003\n    reason: legacy shared-memory sidecar\n    owner: sre\n    expires: 2000-01-01\n');
+    await runScan({ output: 'json', demo: true, ignoreFile: f });
+    const r = JSON.parse(out);
+    expect(r.summary.suppressed).toBe(1);
+    expect(err).toMatch(/warning: suppression expired on 2000-01-01/);
+    expect(err).toMatch(/\(\+1 suppressed\)/);
+    out = '';
+    await runScan({ output: 'json', demo: true, ignoreFile: f, ignore: false });
+    expect(JSON.parse(out).summary.suppressed).toBe(0);
+  });
+});

@@ -20,7 +20,8 @@ Scan results (redacted):
       "low": 0
     },
     "checksFailed": 6,
-    "controlsFailed": 7
+    "controlsFailed": 7,
+    "suppressed": 0
   },
   "findings": [
     {

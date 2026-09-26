@@ -36,6 +36,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `--exclude-namespace <ns...>` | Skip more namespaces. |
 | `--fail-on <severity>` | Exit `2` if any finding is at or above this severity. Useful as a pipeline gate. |
 | `--manifests <paths...>` | Scan YAML files or directories offline instead of a cluster (see [below](#shift-left-manifest-scanning)). `-` reads stdin. |
+| `--ignore-file <path>` / `--no-ignore` | Accepted-risk suppressions (see [below](#suppressions-accepted-risk)). `./.noip-ignore.yaml` is loaded automatically if it exists. |
 | `--demo` | Scan `fixtures/demo-cluster.json` instead of a cluster (same as `NOIP_DEMO=1`). |
 
 Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · `3` Kubernetes unreachable or forbidden.
@@ -89,6 +90,15 @@ kustomize build overlays/prod | noip scan --manifests - -o md     # rendered Kus
 - **Limitation:** namespace-level checks only see `Namespace` objects that appear in the input.
 
 In CI, the offline scan of `test/fixtures/misconfig/` has to produce exactly the same golden findings as the live kind scan.
+
+## Suppressions (accepted risk)
+
+A suppression hides a finding you've decided to accept. Each entry names the finding by exact ID, or by check plus a resource glob, and must include a `reason`, an `owner` and an `expires` date. See [`docs/examples/noip-ignore.example.yaml`](docs/examples/noip-ignore.example.yaml).
+
+- **Nothing disappears silently.** Suppressed findings move to `report.suppressed[]` together with their justification, get a markdown section of their own, and appear in SARIF as `suppressions: [{status: "accepted"}]`, which code-scanning tools display as dismissed.
+- **Expiry is enforced.** A suppression stops applying the day after its `expires` date, and its findings come back with a warning. Suppressions that match nothing are flagged as stale.
+- **What counts.** Scores, control status and `--fail-on` use active findings only; `summary.suppressed` reports how many were suppressed.
+- **API.** Suppressions come only from an operator-set `NOIP_IGNORE_FILE`, never from the request.
 
 ## SARIF / code scanning
 
