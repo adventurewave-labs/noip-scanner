@@ -75,12 +75,13 @@ export function applySuppressions(findings: Finding[], suppressions: Suppression
   const active: Finding[] = [];
   const suppressed: SuppressedFinding[] = [];
   for (const f of findings) {
-    const s = live.find((x) => matches(x, f));
+    const hits = live.filter((x) => matches(x, f));
+    const s = hits[0];
     if (!s) {
       active.push(f);
       continue;
     }
-    used.add(s);
+    for (const h of hits) used.add(h); // overlapping entries are all "in use", not stale
     suppressed.push({ finding: f, suppression: { reason: s.reason, owner: s.owner, expires: s.expires, rule: ruleLabel(s) } });
   }
   for (const s of live) if (!used.has(s)) warnings.push(`suppression matched no findings (stale?): ${ruleLabel(s)}`);

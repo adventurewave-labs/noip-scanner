@@ -29,6 +29,7 @@ interface ScanFlags {
   manifests?: string[];
   ignoreFile?: string;
   ignore?: boolean;
+  minSeverity?: Severity;
   failOn?: Severity;
 }
 
@@ -43,10 +44,11 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     excludeNamespaces: flags.excludeNamespace,
     demo,
     manifests: flags.manifests,
+    minSeverity: flags.minSeverity,
     suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile),
   };
-  if (flags.manifests?.length && (flags.demo || flags.kubeconfig || flags.context)) {
-    throw new Error('--manifests cannot be combined with --demo, --kubeconfig or --context');
+  if (flags.manifests?.length && (demo || flags.kubeconfig || flags.context)) {
+    throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig or --context`);
   }
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
@@ -93,6 +95,7 @@ export function buildCli(): Command {
     .option('--ignore-file <path>', `accepted-risk suppressions with reason/owner/expiry (default: ./${DEFAULT_IGNORE_FILE} if present)`)
     .option('--no-ignore', 'ignore all suppressions and report every finding')
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
+    .addOption(new Option('--min-severity <severity>', 'only report findings at or above this severity (recorded in provenance)').choices([...SEVERITIES]))
     .addOption(new Option('--fail-on <severity>', 'exit 2 if any finding is at or above this severity').choices([...SEVERITIES]))
     .action(async (flags: ScanFlags) => {
       process.exitCode = await runScan(flags);
@@ -119,11 +122,12 @@ export function buildCli(): Command {
   program
     .command('mcp')
     .description('Serve the scanner to AI agents over MCP (stdio). Tools: scan, list_checks, explain_finding. All read-only.')
+    .option('--kubeconfig <path>', 'kubeconfig the server uses (tools cannot choose another file)')
     .option('--ignore-file <path>', `suppressions to apply (default: ./${DEFAULT_IGNORE_FILE} if present)`)
     .option('--no-ignore', 'do not apply suppressions')
-    .action(async (flags: { ignoreFile?: string; ignore?: boolean }) => {
+    .action(async (flags: { kubeconfig?: string; ignoreFile?: string; ignore?: boolean }) => {
       const { runStdio } = await import('./mcp.js');
-      await runStdio({ suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile) });
+      await runStdio({ kubeconfig: flags.kubeconfig, suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile) });
     });
   return program;
 }

@@ -99,6 +99,14 @@
           "items": {
             "type": "string"
           }
+        },
+        "minSeverity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
         }
       }
     },

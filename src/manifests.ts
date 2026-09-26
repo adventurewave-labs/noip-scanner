@@ -115,7 +115,8 @@ export async function loadManifests(paths: string[], readStdin: () => Promise<st
   for (const { file, text } of inputs) {
     for (const { obj, line } of parseManifestText(text, file)) {
       const kind = obj.kind ?? '';
-      const meta = obj.metadata ?? {};
+      // generateName objects have no name until the API server assigns one; make each declaration distinct.
+      const meta: V1ObjectMeta = obj.metadata?.name || !obj.metadata?.generateName ? (obj.metadata ?? {}) : { ...obj.metadata, name: `${obj.metadata.generateName}<generated:${file.replace(/[\\/]/g, '_')}:${line}>` };
       const ns = meta.namespace ?? 'default';
       const clusterScoped = kind === 'Namespace' || kind === 'ClusterRoleBinding';
       const key = clusterScoped ? `${kind}/${meta.name}` : `${kind}/${ns}/${meta.name}`;

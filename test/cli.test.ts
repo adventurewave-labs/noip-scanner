@@ -123,7 +123,7 @@ describe('noip mcp subcommand', () => {
   it('is registered with its options', async () => {
     const { buildCli } = await import('../src/cli.js');
     const mcp = buildCli().commands.find((c) => c.name() === 'mcp')!;
-    expect(mcp.options.map((o) => o.long)).toEqual(['--ignore-file', '--no-ignore']);
+    expect(mcp.options.map((o) => o.long)).toEqual(['--kubeconfig', '--ignore-file', '--no-ignore']);
   });
 });
 
@@ -150,5 +150,24 @@ describe('noip diff subcommand', () => {
     await main(['node', 'noip', 'diff', f, f]);
     expect(process.exitCode).toBe(EXIT.ERROR);
     expect(err).toMatch(/not a NOIP report/);
+  });
+});
+
+describe('NOIP_DEMO does not override --manifests', () => {
+  it('refuses the combination instead of silently scanning demo data', async () => {
+    process.env.NOIP_DEMO = '1';
+    try {
+      await main(['node', 'noip', 'scan', '--manifests', 'test/fixtures/misconfig']);
+      expect(process.exitCode).toBe(EXIT.ERROR);
+      expect(err).toMatch(/cannot be combined with NOIP_DEMO/);
+    } finally {
+      delete process.env.NOIP_DEMO;
+    }
+  });
+  it('--min-severity filters and records it in provenance', async () => {
+    await runScan({ output: 'json', demo: true, minSeverity: 'critical' });
+    const r = JSON.parse(out);
+    expect(r.provenance.minSeverity).toBe('critical');
+    expect(r.findings.every((f: { severity: string }) => f.severity === 'critical')).toBe(true);
   });
 });

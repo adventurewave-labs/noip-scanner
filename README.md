@@ -34,6 +34,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `--netinspect <file>` | Merge a network-diagnostics JSON (see [below](#network-section)) into the report. |
 | `--include-system` | Also scan `kube-system`, `kube-public` and `kube-node-lease`. These are skipped by default. |
 | `--exclude-namespace <ns...>` | Skip more namespaces. |
+| `--min-severity <severity>` | Only report findings at or above this severity. The summary and controls are computed from the kept findings, and the threshold is recorded in `provenance.minSeverity`. |
 | `--fail-on <severity>` | Exit `2` if any finding is at or above this severity. Useful as a pipeline gate. |
 | `--manifests <paths...>` | Scan YAML files or directories offline instead of a cluster (see [below](#shift-left-manifest-scanning)). `-` reads stdin. |
 | `--ignore-file <path>` / `--no-ignore` | Accepted-risk suppressions (see [below](#suppressions-accepted-risk)). `./.noip-ignore.yaml` is loaded automatically if it exists. |
@@ -55,12 +56,17 @@ Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · 
 | NOIP-POD-008 | low | Missing CPU or memory limit | — |
 | NOIP-POD-009 | medium | Secret exposed as env var (`secretKeyRef` / `envFrom`) | 5.4.1 |
 | NOIP-NET-001 | high | Namespace has no NetworkPolicy | 5.3.2 |
-| NOIP-NET-002 | medium | Egress rule with no destination | — |
-| NOIP-RBAC-001 | critical | `cluster-admin` bound to `system:authenticated` / `system:unauthenticated` | 5.1.1 |
+| NOIP-NET-002 | medium | Egress rule with no destination, or to `0.0.0.0/0` / `::/0` without exceptions | — |
+| NOIP-RBAC-001 | critical | `cluster-admin` granted by a ClusterRoleBinding *or RoleBinding* to `system:authenticated`, `system:unauthenticated`, `system:serviceaccounts[:ns]` or `User/system:anonymous` | 5.1.1 |
 | NOIP-RBAC-002 | high | `cluster-admin` bound to a `default` ServiceAccount | 5.1.1, 5.1.5 |
 | NOIP-RBAC-003 | medium | A RoleBinding grants to a `default` ServiceAccount | 5.1.5 |
 
-Each check is a pure function over lists fetched once per scan (`src/checks/`). Pods are attributed to their owning workload, so 30 replicas of a Deployment produce one finding, not 30. By design the check set is capped at about 15 ([ADR-0004](docs/adr/0004-own-checks-capped.md)). If full CIS coverage is ever needed, the plan is to wrap kube-bench or kubescape rather than keep growing this set.
+Each check is a pure function over lists fetched once per scan (`src/checks/`). Container checks cover `containers`, `initContainers` and `ephemeralContainers`, so a privileged `kubectl debug` session is caught.
+
+Each pod is attributed to the workload that owns it:
+
+- 30 replicas of a Deployment produce one finding, not 30.
+- Pods created by a CronJob are attributed to the CronJob, so finding IDs stay stable from one run to the next. By design the check set is capped at about 15 ([ADR-0004](docs/adr/0004-own-checks-capped.md)). If full CIS coverage is ever needed, the plan is to wrap kube-bench or kubescape rather than keep growing this set.
 
 ## Report
 
@@ -154,7 +160,7 @@ claude mcp add noip -- node /path/to/noip-scanner/dist/cli.js mcp
 | `list_checks` | The check catalog: ids, severities, CIS controls and remediation. |
 | `explain_finding` | One finding by id, with its remediation, control status, SOC 2/HIPAA reference mappings, and suppression status. |
 
-All three tools are read-only and marked with `readOnlyHint`. They use the caller's kubeconfig and RBAC, and apply `.noip-ignore.yaml` unless you pass `--no-ignore`. No LLM runs inside NOIP here; the calling agent does the reasoning over deterministic findings. An unreachable cluster comes back as a tool error, not a crash. CI starts the real stdio server and calls it with the official MCP client (`scripts/mcp-smoke.mjs`).
+All three tools are read-only and marked with `readOnlyHint`. Two safety limits apply. Tool calls **cannot choose the kubeconfig**: an operator sets it with `noip mcp --kubeconfig`, because a kubeconfig can run `exec` credential plugins. `manifests` paths must also resolve inside the server's working directory. They use the caller's kubeconfig and RBAC, and apply `.noip-ignore.yaml` unless you pass `--no-ignore`. No LLM runs inside NOIP here; the calling agent does the reasoning over deterministic findings. An unreachable cluster comes back as a tool error, not a crash. CI starts the real stdio server and calls it with the official MCP client (`scripts/mcp-smoke.mjs`).
 
 ## HTTP API (optional)
 

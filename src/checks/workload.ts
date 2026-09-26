@@ -17,6 +17,9 @@ export function workloadOf(pod: V1Pod): ResourceRef {
       }
       return { kind: 'ReplicaSet', namespace: ns, name: owner.name };
     }
+    // Jobs created by a CronJob are named <cronjob>-<scheduled minute>; attribute to the CronJob so IDs are stable across runs.
+    const cron = owner.kind === 'Job' ? /^(.+)-\d{8,}$/.exec(owner.name) : null;
+    if (cron?.[1]) return { kind: 'CronJob', namespace: ns, name: cron[1] };
     if (['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'ReplicationController'].includes(owner.kind)) {
       return { kind: owner.kind, namespace: ns, name: owner.name };
     }
@@ -34,6 +37,8 @@ export function containersOf(pod: V1Pod): ContainerSite[] {
   return [
     ...(pod.spec?.initContainers ?? []).map((c) => ({ container: c, path: `spec.initContainers[${c.name}]` })),
     ...(pod.spec?.containers ?? []).map((c) => ({ container: c, path: `spec.containers[${c.name}]` })),
+    // e.g. `kubectl debug --profile=sysadmin` adds a privileged ephemeral container to a running pod.
+    ...(pod.spec?.ephemeralContainers ?? []).map((c) => ({ container: c as V1Container, path: `spec.ephemeralContainers[${c.name}]` })),
   ];
 }
 

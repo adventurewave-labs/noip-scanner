@@ -30,7 +30,9 @@ function rule(c: Check): ReportingDescriptor {
  */
 function location(f: Finding): Result['locations'] {
   const src = f.resource.source;
-  const uri = src?.file ?? `k8s/${[f.resource.kind, f.resource.namespace, f.resource.name].filter(Boolean).join('/')}`;
+  const pseudo = `k8s/${[f.resource.kind, f.resource.namespace, f.resource.name].filter(Boolean).join('/')}`;
+  // `<stdin>` is not a valid URI reference; fall back to the pseudo-path but keep the line number.
+  const uri = src?.file && src.file !== '<stdin>' ? src.file : pseudo;
   return [
     {
       physicalLocation: { artifactLocation: { uri }, ...(src?.line ? { region: { startLine: src.line } } : {}) },

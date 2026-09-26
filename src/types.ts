@@ -81,6 +81,8 @@ export interface Report {
     scannedAt: string;
     checksRun: string[];
     excludedNamespaces: string[];
+    /** Present when findings below this severity were filtered out (controls then reflect only the kept findings). */
+    minSeverity?: Severity;
   };
   summary: {
     score: number;

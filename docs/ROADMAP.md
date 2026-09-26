@@ -37,6 +37,22 @@ Status: shipped (`loop/r5-diff`)
 
 **Why:** reliability retainers need to show the trend between scans, not a one-off snapshot.
 
+## 6. Independent review fixes
+Status: shipped (`loop/r6-review-fixes`)
+
+A separate reviewer agent audited the stack and found eight defects. All eight are now fixed and each has a regression test (`test/review-fixes.test.ts`):
+
+1. Ephemeral containers were not scanned.
+2. RoleBindings that grant `cluster-admin` were missed.
+3. `NOIP_DEMO` silently overrode `--manifests`.
+4. MCP tools accepted arbitrary kubeconfig paths, even though kubeconfigs can run `exec` plugins, and arbitrary manifest paths.
+5. Finding IDs changed on every run for Jobs created by a CronJob.
+6. Deduplication dropped manifests that use `generateName`.
+7. The MCP `minSeverity` filter left the summary inconsistent with the findings.
+8. SARIF output used `<stdin>` as a file URI.
+
+The review also raised two minor issues, which are fixed as well: overlapping suppressions were reported as stale, and egress to `0.0.0.0/0` was not flagged.
+
 ## Later
 These are candidates, not commitments:
 - Per-namespace Pod Security Admission label check (this would be check #15, which hits the cap).

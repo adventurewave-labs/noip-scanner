@@ -1,5 +1,7 @@
 import type { Check } from './types.js';
 
+const ANY_CIDR = new Set(['0.0.0.0/0', '::/0']);
+
 export const networkChecks: Check[] = [
   {
     id: 'NOIP-NET-001',
@@ -30,12 +32,18 @@ export const networkChecks: Check[] = [
       snap.networkPolicies
         .filter((p) => !ctx.excludedNamespaces.has(p.metadata?.namespace ?? 'default'))
         .flatMap((p) => {
-          const idx = (p.spec?.egress ?? []).findIndex((r) => !r.to || r.to.length === 0);
+          const egress = p.spec?.egress ?? [];
+          const open = egress.findIndex((r) => !r.to || r.to.length === 0);
+          const anyIp = egress.findIndex((r) => (r.to ?? []).some((t) => ANY_CIDR.has(t.ipBlock?.cidr ?? '') && !t.ipBlock?.except?.length));
+          const idx = open >= 0 ? open : anyIp;
           if (idx < 0) return [];
           return [
             {
               resource: { kind: 'NetworkPolicy', namespace: p.metadata?.namespace ?? 'default', name: p.metadata?.name ?? 'unknown' },
-              evidence: `spec.egress[${idx}] has no 'to' selector (all destinations allowed)`,
+              evidence:
+                idx === open
+                  ? `spec.egress[${idx}] has no 'to' selector (all destinations allowed)`
+                  : `spec.egress[${idx}] allows ipBlock ${egress[idx]!.to!.find((t) => ANY_CIDR.has(t.ipBlock?.cidr ?? ''))!.ipBlock!.cidr} with no exceptions`,
             },
           ];
         }),

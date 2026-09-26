@@ -24,6 +24,8 @@ export interface ScanOptions extends KubeOptions {
   now?: Date;
   /** Accepted-risk entries (see src/suppressions.ts). Expired ones are ignored and reported as warnings. */
   suppressions?: Suppression[];
+  /** Drop findings below this severity before summarising, so summary/controls stay consistent with findings[]. */
+  minSeverity?: Severity;
 }
 
 const SEVERITY_WEIGHT: Record<Severity, number> = { critical: 25, high: 15, medium: 8, low: 3 };
@@ -68,7 +70,8 @@ export function buildReport(
     }
   }
   const sevRank = (s: Severity) => SEVERITIES.indexOf(s);
-  const all = [...byId.values()].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
+  const floor = opts.minSeverity ? SEVERITIES.indexOf(opts.minSeverity) : SEVERITIES.length;
+  const all = [...byId.values()].filter((f) => sevRank(f.severity) <= floor).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
   const sup = opts.suppressions ? applySuppressions(all, opts.suppressions, opts.now) : undefined;
   const findings = sup ? sup.active : all;
 
@@ -108,6 +111,7 @@ export function buildReport(
       scannedAt: (opts.now ?? new Date()).toISOString(),
       checksRun: checks.map((c) => c.id),
       excludedNamespaces: excluded,
+      ...(opts.minSeverity ? { minSeverity: opts.minSeverity } : {}),
     },
     summary: {
       score,
