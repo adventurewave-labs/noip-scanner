@@ -135,6 +135,18 @@ Findings are matched by their stable ID. The diff reports:
 
 It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
 
+## Posture history: `noip history`
+
+```bash
+noip history reports/                          # markdown: one table per target, with a trend line
+noip history reports/ -o html --out trend.html # adds a score-over-time chart (no scripts)
+noip history a.json b.json c.json -o json      # machine-readable series
+```
+
+It reads saved JSON reports (files, or directories searched for `*.json`) and groups them by target: source plus kubeconfig context. Each row shows the score, the change since the previous scan, findings by severity and the scanner version that produced it. Files that aren't NOIP reports are listed as skipped rather than failing the run.
+
+Scores are only comparable when the same checks ran with the same `--min-severity`. When either changes between two scans, that row says "not comparable" and has no delta, so a narrower scan never shows up as an improvement. The HTML chart uses a fixed 0–100 axis, has a hover tooltip on each point, and keeps the data table next to it.
+
 ## Shift-left manifest scanning
 
 `--manifests` runs the same 15 checks against manifests before they reach a cluster:

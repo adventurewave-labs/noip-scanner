@@ -12,10 +12,10 @@ src/k8s/client.ts        single KubeConfig factory
 src/k8s/snapshot.ts      fetch every list once → ClusterSnapshot; any failure → K8sUnavailable
 src/checks/              pure checks (snapshot → findings); registry in index.ts; CIS catalog in controls.ts
 src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo), scan
-src/report/              renderers (markdown, html, sarif), bundle (evidence + verify), diff, import-sarif, netinspect, provenance
+src/report/              renderers (markdown, html, sarif), bundle (evidence + verify), diff, history, import-sarif, netinspect, provenance
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
 src/api/                 app.ts (routes, bearer auth), server.ts (entry)
-src/cli.ts               `noip scan | diff | fix | verify-bundle | mcp`
+src/cli.ts               `noip scan | diff | history | fix | verify-bundle | mcp`
 src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)
 src/remediation.ts       deterministic RFC 6902 fixes per finding; src/fix.ts applies them to YAML
 src/suppressions.ts      accepted-risk entries (reason/owner/expiry)

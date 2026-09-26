@@ -163,6 +163,24 @@ export function buildCli(): Command {
     });
 
   program
+    .command('history')
+    .description('Show the posture score trend across saved JSON reports (per target; HTML includes a chart)')
+    .argument('<paths...>', 'report.json files or directories containing them')
+    .addOption(new Option('-o, --output <format>', 'history format').choices(['md', 'html', 'json']).default('md'))
+    .addOption(new Option('--lang <lang>', 'language for md/html').choices([...LANGS]).default('en'))
+    .option('--out <file>', 'write to a file instead of stdout')
+    .action(async (paths: string[], flags: { output: 'md' | 'html' | 'json'; lang: Lang; out?: string }) => {
+      const { loadHistory, renderHistoryHtml, renderHistoryMarkdown } = await import('./report/history.js');
+      const h = loadHistory(paths);
+      const body = flags.output === 'json' ? JSON.stringify(h, null, 2) + '\n' : flags.output === 'html' ? renderHistoryHtml(h, flags.lang) : renderHistoryMarkdown(h, flags.lang);
+      if (flags.out) writeFileSync(flags.out, body);
+      else process.stdout.write(body);
+      const n = h.targets.reduce((a, t) => a + t.points.length, 0);
+      warn(`history: ${n} report(s) across ${h.targets.length} target(s)${h.skipped.length ? `, ${h.skipped.length} file(s) skipped` : ''}`);
+      if (!n) process.exitCode = EXIT.ERROR;
+    });
+
+  program
     .command('fix')
     .description('Apply deterministic fixes from a manifest scan back onto the YAML (comments preserved)')
     .argument('<paths...>', 'YAML files or directories')
