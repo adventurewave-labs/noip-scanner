@@ -30,9 +30,15 @@ Running `noip mcp` starts a stdio MCP server exposing three tools: `scan`, `list
 
 **Why:** agents (Claude Code, Turbo Flow) can run a posture audit as a tool call and reason over deterministic findings rather than raw `kubectl` output.
 
+## 5. Posture drift: `noip diff`
+Status: shipped (`loop/r5-diff`)
+
+`noip diff a.json b.json` compares two reports and lists new, resolved and changed findings, newly suppressed findings, control flips and the score delta. `--fail-on` exits non-zero when a new finding is at or above the given severity.
+
+**Why:** reliability retainers need to show the trend between scans, not a one-off snapshot.
+
 ## Later
 These are candidates, not commitments:
-- `noip diff a.json b.json` for posture drift between scans.
 - Per-namespace Pod Security Admission label check (this would be check #15, which hits the cap).
 - OpenVEX-style exception export.
 - Signed release artifacts with SLSA provenance, once releases exist.

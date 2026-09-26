@@ -126,3 +126,29 @@ describe('noip mcp subcommand', () => {
     expect(mcp.options.map((o) => o.long)).toEqual(['--ignore-file', '--no-ignore']);
   });
 });
+
+describe('noip diff subcommand', () => {
+  it('diffs two report files and gates on new findings', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'noip-diff-'));
+    const a = join(dir, 'a.json');
+    const b = join(dir, 'b.json');
+    await runScan({ output: 'json', demo: true, out: a, excludeNamespace: ['ci'] });
+    await runScan({ output: 'json', demo: true, out: b });
+    out = '';
+    await main(['node', 'noip', 'diff', a, b, '--fail-on', 'critical']);
+    expect(out).toContain('# NOIP posture drift');
+    expect(process.exitCode).toBe(EXIT.FINDINGS_AT_THRESHOLD);
+    process.exitCode = undefined;
+    out = '';
+    await main(['node', 'noip', 'diff', b, a, '-o', 'json', '--fail-on', 'critical']);
+    expect(JSON.parse(out).new).toEqual([]);
+    expect(process.exitCode).toBeUndefined();
+  });
+  it('rejects files that are not NOIP reports', async () => {
+    const f = join(mkdtempSync(join(tmpdir(), 'noip-diff-')), 'x.json');
+    writeFileSync(f, '{"hello":1}');
+    await main(['node', 'noip', 'diff', f, f]);
+    expect(process.exitCode).toBe(EXIT.ERROR);
+    expect(err).toMatch(/not a NOIP report/);
+  });
+});

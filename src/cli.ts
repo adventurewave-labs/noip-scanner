@@ -5,13 +5,14 @@ import { Command, Option } from 'commander';
 import { K8sUnavailable } from './errors.js';
 import { explain } from './llm/explain.js';
 import { createProvider } from './llm/provider.js';
+import { diffReports, regressed, renderDiffMarkdown } from './report/diff.js';
 import { renderMarkdown } from './report/markdown.js';
 import { renderSarif } from './report/sarif.js';
 import { ingestNetinspect } from './report/netinspect.js';
 import { scannerInfo } from './report/provenance.js';
 import { buildReport, getSnapshot, isDemoMode } from './scan.js';
 import { DEFAULT_IGNORE_FILE, loadIgnoreFile } from './suppressions.js';
-import { SEVERITIES, type Severity } from './types.js';
+import { SEVERITIES, type Report, type Severity } from './types.js';
 
 export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE: 3 } as const;
 
@@ -96,6 +97,25 @@ export function buildCli(): Command {
     .action(async (flags: ScanFlags) => {
       process.exitCode = await runScan(flags);
     });
+  program
+    .command('diff')
+    .description('Show posture drift between two JSON reports (new, resolved, changed findings; control changes; score delta)')
+    .argument('<before>', 'earlier report.json')
+    .argument('<after>', 'later report.json')
+    .addOption(new Option('-o, --output <format>', 'diff format').choices(['md', 'json']).default('md'))
+    .addOption(new Option('--fail-on <severity>', 'exit 2 if `after` has a NEW finding at or above this severity').choices([...SEVERITIES]))
+    .action((before: string, after: string, flags: { output: 'md' | 'json'; failOn?: Severity }) => {
+      const read = (f: string) => {
+        const r = JSON.parse(readFileSync(f, 'utf8')) as Report;
+        if (r.schemaVersion !== '1' || !Array.isArray(r.findings)) throw new Error(`${f} is not a NOIP report (schemaVersion 1)`);
+        return r;
+      };
+      const d = diffReports(read(before), read(after));
+      process.stdout.write(flags.output === 'json' ? JSON.stringify(d, null, 2) + '\n' : renderDiffMarkdown(d));
+      warn(`diff: ${d.new.length} new, ${d.resolved.length} resolved, score ${d.scoreDelta >= 0 ? '+' : ''}${d.scoreDelta}`);
+      if (flags.failOn && regressed(d, flags.failOn)) process.exitCode = EXIT.FINDINGS_AT_THRESHOLD;
+    });
+
   program
     .command('mcp')
     .description('Serve the scanner to AI agents over MCP (stdio). Tools: scan, list_checks, explain_finding. All read-only.')

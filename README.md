@@ -73,6 +73,23 @@ Reports validate against [`schemas/report.schema.json`](schemas/report.schema.js
 
 A sample is in [`docs/examples/demo-report.md`](docs/examples/demo-report.md).
 
+## Posture drift: `noip diff`
+
+```bash
+noip scan --out 2026-09.json                     # this month
+noip diff 2026-08.json 2026-09.json              # markdown drift report
+noip diff 2026-08.json 2026-09.json --fail-on high -o json   # CI gate: exit 2 on NEW high+ findings
+```
+
+Findings are matched by their stable ID. The diff reports:
+
+- new, resolved and unchanged findings
+- changed evidence (same finding, different field or value)
+- newly suppressed findings (accepted risk, so these don't count as resolved)
+- control pass/fail changes, check-set changes and the score delta
+
+It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
+
 ## Shift-left manifest scanning
 
 `--manifests` runs the same 14 checks against manifests before they reach a cluster:
