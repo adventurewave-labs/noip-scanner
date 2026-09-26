@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+report.json
+report.md
+*.log
+.env
