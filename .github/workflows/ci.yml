@@ -85,6 +85,7 @@ jobs:
         run: |
           node dist/cli.js scan --kubeconfig noip.kubeconfig --out report.json
           node dist/cli.js scan --kubeconfig noip.kubeconfig -o md --out report.md
+          node dist/cli.js scan --kubeconfig noip.kubeconfig -o sarif --out report.sarif
       - name: validate report schema
         run: node scripts/validate-report.mjs report.json
       - name: golden comparison (5/5 seeded, 0 in clean namespace)
@@ -96,6 +97,7 @@ jobs:
           path: |
             report.json
             report.md
+            report.sarif
           if-no-files-found: warn
 
   docker-smoke:

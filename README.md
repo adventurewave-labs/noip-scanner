@@ -28,7 +28,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | Flag | Meaning |
 |---|---|
 | `--kubeconfig <path>` / `--context <name>` | Which cluster to scan. Defaults to `$KUBECONFIG`, then `~/.kube/config`, then in-cluster. |
-| `-o, --output json\|md` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. |
+| `-o, --output json\|md\|sarif` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. `sarif` is SARIF 2.1.0 (see [below](#sarif--code-scanning)). |
 | `--out <file>` | Write to a file instead of stdout. |
 | `--explain` | Add an LLM explanation. Needs a key. If the provider fails, `explanation: null` and the scan still succeeds. |
 | `--netinspect <file>` | Merge a network-diagnostics JSON (see [below](#network-section)) into the report. |
@@ -70,6 +70,16 @@ Reports validate against [`schemas/report.schema.json`](schemas/report.schema.js
 - **`controls[]`:** pass/fail per CIS control, with SOC 2 / HIPAA reference mappings and the disclaimer `reference mappings, not an attestation`.
 
 A sample is in [`docs/examples/demo-report.md`](docs/examples/demo-report.md).
+
+## SARIF / code scanning
+
+`-o sarif` emits SARIF 2.1.0, validated in tests against the official OASIS schema (`schemas/vendor/`). It includes:
+
+- One rule per check, with remediation and control references.
+- One result per finding, with GitHub `security-severity` scores: critical 9.5, high 8.0, medium 5.5, low 3.0.
+- Stable `partialFingerprints`, so a re-scan updates existing alerts instead of duplicating them.
+
+Findings from live clusters use the pseudo-path `k8s/<Kind>/<namespace>/<name>`; manifest findings use their real file and line. The output can be loaded into GitHub code scanning (`github/codeql-action/upload-sarif`), which needs GitHub Code Security on private repos, as well as the VS Code SARIF Viewer, DefectDojo and Azure DevOps.
 
 ## LLM explanation (optional)
 

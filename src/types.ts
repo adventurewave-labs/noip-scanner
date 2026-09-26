@@ -28,6 +28,8 @@ export interface ResourceRef {
   name: string;
   namespace?: string;
   container?: string;
+  /** Set for offline manifest scans: where the object was declared. */
+  source?: { file: string; line?: number };
 }
 
 export interface Finding {

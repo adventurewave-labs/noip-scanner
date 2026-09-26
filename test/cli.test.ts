@@ -74,3 +74,12 @@ describe('noip scan (R-7)', () => {
     expect(out).toContain('DEMO DATA');
   });
 });
+
+describe('noip scan -o sarif', () => {
+  it('emits SARIF 2.1.0', async () => {
+    await main(['node', 'noip', 'scan', '--demo', '-o', 'sarif']);
+    const log = JSON.parse(out);
+    expect(log.version).toBe('2.1.0');
+    expect(log.runs[0].tool.driver.name).toBe('noip');
+  });
+});
