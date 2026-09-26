@@ -111,3 +111,10 @@ describe('ignore file', () => {
     expect(loadIgnoreFile(write(''))).toEqual([]);
   });
 });
+
+describe('SuppressionSchema', () => {
+  it('normalises Date objects (e.g. from YAML 1.1 timestamp parsing) to YYYY-MM-DD', async () => {
+    const { SuppressionSchema } = await import('../src/suppressions.js');
+    expect(SuppressionSchema.parse({ ...base, check: 'NOIP-POD-004', expires: new Date('2026-12-31T00:00:00Z') }).expires).toBe('2026-12-31');
+  });
+});

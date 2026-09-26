@@ -118,3 +118,11 @@ describe('noip scan suppressions', () => {
     expect(JSON.parse(out).summary.suppressed).toBe(0);
   });
 });
+
+describe('noip mcp subcommand', () => {
+  it('is registered with its options', async () => {
+    const { buildCli } = await import('../src/cli.js');
+    const mcp = buildCli().commands.find((c) => c.name() === 'mcp')!;
+    expect(mcp.options.map((o) => o.long)).toEqual(['--ignore-file', '--no-ignore']);
+  });
+});

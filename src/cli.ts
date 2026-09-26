@@ -96,6 +96,15 @@ export function buildCli(): Command {
     .action(async (flags: ScanFlags) => {
       process.exitCode = await runScan(flags);
     });
+  program
+    .command('mcp')
+    .description('Serve the scanner to AI agents over MCP (stdio). Tools: scan, list_checks, explain_finding. All read-only.')
+    .option('--ignore-file <path>', `suppressions to apply (default: ./${DEFAULT_IGNORE_FILE} if present)`)
+    .option('--no-ignore', 'do not apply suppressions')
+    .action(async (flags: { ignoreFile?: string; ignore?: boolean }) => {
+      const { runStdio } = await import('./mcp.js');
+      await runStdio({ suppressions: flags.ignore === false ? undefined : loadIgnoreFile(flags.ignoreFile) });
+    });
   return program;
 }
 

@@ -56,6 +56,8 @@ jobs:
           node dist/cli.js scan --manifests test/fixtures/misconfig --out manifests-report.json
           node scripts/validate-report.mjs manifests-report.json
           node scripts/golden-compare.mjs manifests-report.json --source manifests
+      - name: MCP server answers over real stdio
+        run: node scripts/mcp-smoke.mjs
 
   kind-scan:
     name: live scan against kind (golden)

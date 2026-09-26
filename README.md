@@ -123,6 +123,22 @@ The model only ever sees a projection of the deterministic report: finding IDs, 
 
 The output is validated with zod. Any priority that cites a finding ID not in the report is dropped. If validation fails, the provider errors, or no key is set, you get the deterministic report with `explanation: null` from the CLI, or HTTP 501 from `/api/report/explain`. The scan itself is unaffected in every case. Tests use a fake provider. A real-provider run is available as a manual `workflow_dispatch` job (`llm_live: true`), which uses the `ANTHROPIC_API_KEY` secret.
 
+## MCP server (for AI agents)
+
+`noip mcp` serves the scanner over MCP (stdio), so Claude Code, Turbo Flow or any other MCP client can run posture audits as tool calls:
+
+```bash
+claude mcp add noip -- node /path/to/noip-scanner/dist/cli.js mcp
+```
+
+| Tool | What it returns |
+|---|---|
+| `scan` | The full report for the current kubeconfig, a given `kubeconfig`/`context`, offline `manifests`, or `demo`. Accepts an optional `minSeverity` filter. |
+| `list_checks` | The check catalog: ids, severities, CIS controls and remediation. |
+| `explain_finding` | One finding by id, with its remediation, control status, SOC 2/HIPAA reference mappings, and suppression status. |
+
+All three tools are read-only and marked with `readOnlyHint`. They use the caller's kubeconfig and RBAC, and apply `.noip-ignore.yaml` unless you pass `--no-ignore`. No LLM runs inside NOIP here; the calling agent does the reasoning over deterministic findings. An unreachable cluster comes back as a tool error, not a crash. CI starts the real stdio server and calls it with the official MCP client (`scripts/mcp-smoke.mjs`).
+
 ## HTTP API (optional)
 
 ```bash

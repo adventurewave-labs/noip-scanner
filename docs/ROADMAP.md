@@ -24,7 +24,7 @@ This round also pins GitHub Actions to commit SHAs.
 **Why:** adoption on real clusters needs accepted-risk handling, and expiry stops suppressions from quietly becoming permanent. SHA pinning is OpenSSF Scorecard hygiene.
 
 ## 4. MCP server
-Status: planned
+Status: shipped (`loop/r4-mcp`)
 
 Running `noip mcp` starts a stdio MCP server exposing three tools: `scan`, `list_checks` and `explain_finding`. All are read-only, use the same kubeconfig and RBAC, and return structured content that follows the report schema.
 

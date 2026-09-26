@@ -15,7 +15,10 @@ src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo),
 src/report/              markdown renderer, provenance, netinspect ingest
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
 src/api/                 app.ts (routes, bearer auth), server.ts (entry)
-src/cli.ts               `noip scan`
+src/cli.ts               `noip scan`, `noip mcp`
+src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)
+src/suppressions.ts      accepted-risk entries (reason/owner/expiry)
+src/mcp.ts               MCP server: scan, list_checks, explain_finding (read-only)
 fixtures/demo-cluster.json          demo-mode data (fictional)
 test/fixtures/misconfig/*.yaml      seeded kind fixtures
 test/golden/kind-findings.json      expected finding IDs for those fixtures
