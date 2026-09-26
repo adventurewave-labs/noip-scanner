@@ -139,3 +139,16 @@ describe('redaction regressions (found by fuzzing)', () => {
     }
   });
 });
+
+describe('LLM payload context (loop 3)', () => {
+  it('includes risk chains and Pod Security readiness, capped and redacted', () => {
+    const r = demo();
+    const p = llmPayload(r);
+    expect(p.riskChains[0]).toMatchObject({ severity: 'critical' });
+    expect(p.podSecurity.find((n: { namespace: string }) => n.namespace === 'payments')).toEqual({ namespace: 'payments', enforcedNow: null, couldEnforce: 'baseline', blockingWorkloads: 1 });
+    r.riskChains = Array.from({ length: 20 }, () => ({ ...r.riskChains![0]!, title: 'token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abcdefghijklmnop' }));
+    const q = llmPayload(r);
+    expect(q.riskChains).toHaveLength(10);
+    expect(JSON.stringify(q.riskChains)).not.toContain('eyJhbGciOiJIUzI1NiJ9');
+  });
+});

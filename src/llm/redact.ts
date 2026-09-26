@@ -52,5 +52,8 @@ export function llmPayload(report: Report) {
     })),
     truncatedFindings: Math.max(0, report.findings.length - 60),
     failedControls: report.controls.filter((c) => c.status === 'fail').map((c) => ({ id: c.id, title: c.title })),
+    // Deterministic context the model should weigh, not re-derive: compounding findings and safe PSA levels.
+    riskChains: (report.riskChains ?? []).slice(0, 10).map((c) => ({ severity: c.severity, title: c.title, findingIds: c.findingIds })),
+    podSecurity: (report.podSecurity?.namespaces ?? []).slice(0, 50).map((n) => ({ namespace: n.namespace, enforcedNow: n.enforce ?? null, couldEnforce: n.canEnforce, blockingWorkloads: n.blockers.length })),
   });
 }
