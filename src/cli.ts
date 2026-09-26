@@ -6,6 +6,7 @@ import { K8sUnavailable } from './errors.js';
 import { explain } from './llm/explain.js';
 import { createProvider } from './llm/provider.js';
 import { diffReports, regressed, renderDiffMarkdown } from './report/diff.js';
+import { renderHtml } from './report/html.js';
 import { renderMarkdown } from './report/markdown.js';
 import { renderSarif } from './report/sarif.js';
 import { ingestNetinspect } from './report/netinspect.js';
@@ -19,7 +20,7 @@ export const EXIT = { OK: 0, ERROR: 1, FINDINGS_AT_THRESHOLD: 2, K8S_UNAVAILABLE
 interface ScanFlags {
   kubeconfig?: string;
   context?: string;
-  output: 'json' | 'md' | 'sarif';
+  output: 'json' | 'md' | 'sarif' | 'html';
   out?: string;
   explain?: boolean;
   netinspect?: string;
@@ -66,7 +67,9 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   const body =
     flags.output === 'md'
       ? renderMarkdown(report)
-      : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
+      : flags.output === 'html'
+        ? renderHtml(report)
+        : JSON.stringify(flags.output === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
   if (flags.out) writeFileSync(flags.out, body);
   else process.stdout.write(body);
 
@@ -85,7 +88,7 @@ export function buildCli(): Command {
     .description('Scan the current (or given) kubeconfig context and emit a findings report')
     .option('--kubeconfig <path>', 'kubeconfig file (default: $KUBECONFIG or ~/.kube/config, or in-cluster)')
     .option('--context <name>', 'kubeconfig context to use')
-    .addOption(new Option('-o, --output <format>', 'report format').choices(['json', 'md', 'sarif']).default('json'))
+    .addOption(new Option('-o, --output <format>', 'report format').choices(['json', 'md', 'sarif', 'html']).default('json'))
     .option('--out <file>', 'write the report to a file instead of stdout')
     .option('--explain', 'add an LLM explanation (redacted input, schema-validated output; needs an API key)')
     .option('--netinspect <file>', 'merge a k8s-netinspect JSON result as a "network" section')

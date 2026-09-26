@@ -171,3 +171,10 @@ describe('NOIP_DEMO does not override --manifests', () => {
     expect(r.findings.every((f: { severity: string }) => f.severity === 'critical')).toBe(true);
   });
 });
+
+describe('noip scan -o html', () => {
+  it('writes a self-contained HTML report', async () => {
+    await main(['node', 'noip', 'scan', '--demo', '-o', 'html']);
+    expect(out.startsWith('<!doctype html>')).toBe(true);
+  });
+});

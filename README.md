@@ -28,7 +28,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | Flag | Meaning |
 |---|---|
 | `--kubeconfig <path>` / `--context <name>` | Which cluster to scan. Defaults to `$KUBECONFIG`, then `~/.kube/config`, then in-cluster. |
-| `-o, --output json\|md\|sarif` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. `sarif` is SARIF 2.1.0 (see [below](#sarif--code-scanning)). |
+| `-o, --output json\|md\|sarif\|html` | Report format (default `json`). Each markdown `Evidence:` line is identical to the JSON `evidence` field. `sarif` is SARIF 2.1.0 (see [below](#sarif--code-scanning)). `html` is a single self-contained, print-ready file for client handoff: no scripts or external assets, light and dark themes, and every value escaped. |
 | `--out <file>` | Write to a file instead of stdout. |
 | `--explain` | Add an LLM explanation. Needs a key. If the provider fails, `explanation: null` and the scan still succeeds. |
 | `--netinspect <file>` | Merge a network-diagnostics JSON (see [below](#network-section)) into the report. |
