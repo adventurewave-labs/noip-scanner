@@ -5,6 +5,7 @@ import { loadKubeConfig } from './k8s/client.js';
 import { renderHtml } from './report/html.js';
 import type { Lang } from './report/i18n.js';
 import { renderMarkdown } from './report/markdown.js';
+import { renderOscal } from './report/oscal.js';
 import { renderSarif } from './report/sarif.js';
 import { buildReport, getSnapshot, type ScanOptions } from './scan.js';
 import type { Report, Severity } from './types.js';
@@ -29,8 +30,8 @@ export interface Fleet {
   clusters: FleetEntry[];
 }
 
-type Format = 'json' | 'md' | 'sarif' | 'html';
-const EXT: Record<Format, string> = { json: 'json', md: 'md', sarif: 'sarif', html: 'html' };
+type Format = 'json' | 'md' | 'sarif' | 'html' | 'oscal';
+const EXT: Record<Format, string> = { json: 'json', md: 'md', sarif: 'sarif', html: 'html', oscal: 'oscal.json' };
 /** Report file stem for a context. Prefixed so no context can collide with fleet.json / fleet.md. */
 export const safeName = (ctx: string) => `cluster-${ctx.replace(/[^A-Za-z0-9._-]+/g, '_')}`;
 
@@ -55,7 +56,7 @@ export async function scanFleet(
       const r = buildReport(snapshot, source, opts);
       const file = `${safeName(context)}.${EXT[opts.format]}`;
       const body =
-        opts.format === 'md' ? renderMarkdown(r, opts.lang) : opts.format === 'html' ? renderHtml(r, opts.lang) : JSON.stringify(opts.format === 'sarif' ? renderSarif(r) : r, null, 2) + '\n';
+        opts.format === 'md' ? renderMarkdown(r, opts.lang) : opts.format === 'html' ? renderHtml(r, opts.lang) : JSON.stringify(opts.format === 'sarif' ? renderSarif(r) : opts.format === 'oscal' ? renderOscal(r) : r, null, 2) + '\n';
       writeFileSync(join(opts.outDir, file), body);
       reports.push(r);
       fleet.clusters.push({

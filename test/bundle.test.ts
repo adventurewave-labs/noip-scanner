@@ -17,14 +17,14 @@ describe('evidence bundle', () => {
   it('writes all formats, SHA256SUMS (sha256sum -c compatible) and an in-toto v1 statement', () => {
     const d = fresh();
     const sums = readFileSync(join(d, SUMS_FILE), 'utf8');
-    expect(sums.trim().split('\n').map((l) => l.split('  ')[1])).toEqual([STATEMENT_FILE, 'report.html', 'report.json', 'report.md', 'report.sarif']);
+    expect(sums.trim().split('\n').map((l) => l.split('  ')[1])).toEqual([STATEMENT_FILE, 'report.html', 'report.json', 'report.md', 'report.oscal.json', 'report.sarif']);
     expect(execFileSync('sha256sum', ['-c', SUMS_FILE], { cwd: d }).toString()).toMatch(/report\.json: OK/);
     const st = JSON.parse(readFileSync(join(d, STATEMENT_FILE), 'utf8'));
     expect(st._type).toBe('https://in-toto.io/Statement/v1');
     expect(st.predicateType).toBe(PREDICATE_TYPE);
-    expect(st.subject.map((s: { name: string }) => s.name)).toEqual(['report.json', 'report.md', 'report.html', 'report.sarif']);
+    expect(st.subject.map((s: { name: string }) => s.name)).toEqual(['report.json', 'report.md', 'report.html', 'report.sarif', 'report.oscal.json']);
     expect(st.predicate).toMatchObject({ source: 'demo', scanner: { gitSha: 'test-sha' }, scannedAt: '2026-09-26T00:00:00.000Z' });
-    expect(verifyBundle(d)).toEqual({ ok: true, problems: [], files: 5 });
+    expect(verifyBundle(d)).toEqual({ ok: true, problems: [], files: 6 });
   });
 
   it('refuses to write into a non-empty directory', () => {

@@ -119,7 +119,7 @@ noip verify-bundle evidence/2026-09-acme          # or: (cd evidence/2026-09-acm
 
 The bundle directory holds:
 
-- `report.json`, `report.md`, `report.html` and `report.sarif`
+- `report.json`, `report.md`, `report.html`, `report.sarif` and `report.oscal.json`
 - `SHA256SUMS`
 - `provenance.intoto.json`, an [in-toto v1 Statement](https://github.com/in-toto/attestation) whose subjects are the four reports and whose predicate is the scan's provenance
 
@@ -257,6 +257,17 @@ repos:
 ```
 
 `noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Put paths before options that take several values (`--import-sarif`, `--contexts`), or after `--`. Well-formed non-Kubernetes YAML is ignored; YAML that doesn't parse fails the hook. Helm chart `templates/` are excluded, since they are Go templates; scan `helm template … | noip scan --manifests -` instead. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
+
+## OSCAL assessment results
+
+`-o oscal` (on `scan`, `render` and fleet runs) emits [NIST OSCAL](https://pages.nist.gov/OSCAL/) 1.2.3 Assessment Results JSON, for GRC tools that ingest OSCAL. Evidence bundles include it as `report.oscal.json`.
+
+- One observation per finding (evidence, severity, remediation, the affected resource as an inventory item).
+- One OSCAL finding per mapped CIS control, marked `satisfied` or `not-satisfied`, linked to its observations.
+- UUIDs are deterministic (v5), so the same report always produces the same document.
+- Tests validate the output against the official OSCAL schema, vendored in `schemas/vendor/`.
+
+Limits: the control IDs are CIS Kubernetes Benchmark IDs as NOIP maps them (the same caveat as the report's mapping disclaimer), not controls from an imported OSCAL catalog. There is no assessment plan or SSP; `import-ap` points to a back-matter entry that says so. It's machine-readable evidence, not an authorization package.
 
 ## LLM explanation (optional)
 

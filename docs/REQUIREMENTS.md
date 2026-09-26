@@ -45,3 +45,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | GitHub Action and pre-commit hook | `action.yml`, `.pre-commit-hooks.yaml`, `scripts/pre-commit-noip.sh` | Pinning and injection tests (`test/distribution.test.ts`); CI `action-smoke` job |
 | Third independent review | `test/review3-fixes.test.ts` | A regression test for each confirmed defect |
 | Pod Security readiness | `src/psa.ts`, report `podSecurity` | Upstream PSA conformance fixtures, 1.23–1.37 (`test/psa.test.ts`) |
+| OSCAL assessment results | `src/report/oscal.ts`, `-o oscal`, bundle `report.oscal.json` | Official OSCAL 1.2.3 schema validation; deterministic UUIDv5 known-answer test (`test/oscal.test.ts`) |

@@ -92,7 +92,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 26 | Distribution: composite GitHub Action and pre-commit hook | shipped (`loop/r26-distribution`) |
 | 27 | Independent review #3, with fixes (9 confirmed defects, including an XSS in history HTML) | shipped (`loop/r27-review3`) |
 | 28 | Pod Security readiness: which level each namespace could enforce today, via a port of the upstream PSA checks, conformance-tested against upstream fixtures; NS-001 fixes never pick a level that would reject current pods | shipped (`loop/r28-psa-readiness`) |
-| 29 | Compliance export: OSCAL assessment results | planned |
+| 29 | Compliance export: OSCAL 1.2.3 assessment results (`-o oscal`, in bundles), validated against the official schema | shipped (`loop/r29-oscal`) |
 | 30 | Wrap-up | planned |
 
 ## Later
