@@ -15,7 +15,8 @@ src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo),
 src/report/              renderers (markdown, html, sarif), bundle (evidence + verify), diff, history, import-sarif, netinspect, provenance
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
 src/api/                 app.ts (routes, bearer auth), server.ts (entry)
-src/cli.ts               `noip scan | diff | history | fix | verify-bundle | mcp`
+src/cli.ts               `noip scan | diff | history | policy | fix | verify-bundle | mcp`
+src/policy.ts            ValidatingAdmissionPolicy (CEL) export; parity-tested against the checks
 src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)
 src/remediation.ts       deterministic RFC 6902 fixes per finding; src/fix.ts applies them to YAML
 src/suppressions.ts      accepted-risk entries (reason/owner/expiry)

@@ -121,6 +121,24 @@ jobs:
         run: node scripts/validate-report.mjs report.json
       - name: golden comparison (5/5 seeded, 0 in clean namespace)
         run: node scripts/golden-compare.mjs report.json
+      - name: admission policies (noip policy) on a real API server
+        run: |
+          node dist/cli.js policy --out policy.yaml
+          kubectl apply -f policy.yaml
+          probe() {
+            kubectl -n default run "$1" --image=busybox --restart=Never --dry-run=server \
+              --overrides='{"spec":{"containers":[{"name":"p","image":"busybox","securityContext":{"privileged":true}}]}}' 2>&1
+          }
+          # Policies take a few seconds to load. Warn mode admits the pod and prints the NOIP message.
+          for i in $(seq 1 30); do out=$(probe vap-warn) && echo "$out" | grep -q 'NOIP-POD-001' && break; sleep 2; done
+          echo "$out"; echo "$out" | grep -q 'NOIP-POD-001'
+          kubectl get validatingadmissionpolicies -l app.kubernetes.io/managed-by=noip \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" type-check: "}{.status.typeChecking.expressionWarnings}{"\n"}{end}'
+          # Deny mode rejects it.
+          node dist/cli.js policy --action deny --checks NOIP-POD-001 | kubectl apply -f -
+          for i in $(seq 1 30); do if ! probe vap-deny >/dev/null; then denied=1; break; fi; sleep 2; done
+          test "${denied:-0}" = 1 && probe vap-deny | grep 'NOIP-POD-001' || true
+          test "${denied:-0}" = 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -129,6 +147,7 @@ jobs:
             report.json
             report.md
             report.sarif
+            policy.yaml
           if-no-files-found: warn
 
   docker-smoke:

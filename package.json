@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@marcbachmann/cel-js": "^8.0.0",
     "@seriousme/openapi-schema-validator": "^2.11.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.4",

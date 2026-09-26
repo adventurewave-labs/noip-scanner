@@ -41,3 +41,4 @@ These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reaso
 | NSA/CISA and NIST 800-190 references | `src/checks/references.ts` | Completeness test covering every check |
 | Two independent reviews | `test/review-fixes.test.ts`, `test/review2-fixes.test.ts` | A regression test for each defect found |
 | Posture history | `src/report/history.ts`, `noip history` | Grouping, scope-change and escaping tests (`test/history.test.ts`) |
+| Admission policies | `src/policy.ts`, `noip policy` | CEL/check parity on fixtures and random pods (`test/policy.test.ts`); kind job applies them (warn and deny) |

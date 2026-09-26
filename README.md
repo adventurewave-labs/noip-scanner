@@ -165,6 +165,22 @@ kustomize build overlays/prod | noip scan --manifests - -o md     # rendered Kus
 
 In CI, the offline scan of `test/fixtures/misconfig/` has to produce exactly the same golden findings as the live kind scan.
 
+## Admission policies: `noip policy`
+
+```bash
+noip policy > noip-policy.yaml                  # Warn + Audit: nothing is blocked
+kubectl apply --dry-run=server -f noip-policy.yaml && kubectl apply -f noip-policy.yaml
+noip policy --action deny --min-severity critical | kubectl apply -f -   # later, once warnings are clean
+```
+
+`noip scan` finds problems that are already running. `noip policy` prints the same rules as [ValidatingAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/) objects with CEL expressions (`admissionregistration.k8s.io/v1`, Kubernetes 1.30 or later), so the API server can flag new problems at `kubectl apply` time. NOIP only prints YAML; it never applies anything.
+
+- **Coverage:** POD-001 to POD-009 and NS-001, one policy and binding per check. The pod rules match Pods and the pod templates of Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs and CronJobs. NET and RBAC checks describe cluster state rather than a single object, so they stay in `noip scan`.
+- **Safe default:** bindings use `Warn` + `Audit` with `failurePolicy: Ignore`. `--action deny` switches to `Deny` with `failurePolicy: Fail`.
+- **Scope:** system namespaces are skipped unless `--include-system`; add more with `--exclude-namespace`. Filter with `--checks` or `--min-severity`.
+- **Parity:** `test/policy.test.ts` evaluates every CEL rule against the demo cluster, the seeded fixtures and 400 random pods, and requires the same verdict as the check. The kind CI job applies the policies to a real API server and checks both the warning and the deny.
+- **Limits:** ephemeral containers (`kubectl debug`) are added through a subresource these policies don't match; `noip scan` still reports them.
+
 ## Fixes: `noip fix`
 
 When a finding has a fix that needs no judgement call, it carries `fix: {description, patch}`. The patch is an RFC 6902 JSON Patch against the finding's own object, and it uses the correct pod-spec path for each workload kind: Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob and so on.

@@ -181,6 +181,24 @@ export function buildCli(): Command {
     });
 
   program
+    .command('policy')
+    .description('Print ValidatingAdmissionPolicy YAML (CEL) mirroring the pod and namespace checks. Prints only; applies nothing.')
+    .addOption(new Option('--action <action>', 'binding action: warn (Warn+Audit), audit, or deny').choices(['warn', 'audit', 'deny']).default('warn'))
+    .option('--checks <ids...>', 'only these check IDs (default: every admission-shaped check)')
+    .addOption(new Option('--min-severity <severity>', 'only checks at or above this severity').choices([...SEVERITIES]))
+    .option('--include-system', 'also apply to kube-system, kube-public and kube-node-lease')
+    .option('--exclude-namespace <ns...>', 'additional namespaces the policies skip')
+    .option('--out <file>', 'write to a file instead of stdout')
+    .action(async (flags: { action: 'warn' | 'audit' | 'deny'; checks?: string[]; minSeverity?: Severity; includeSystem?: boolean; excludeNamespace?: string[]; out?: string }) => {
+      const { policyDocuments, renderPolicies } = await import('./policy.js');
+      const opts = { action: flags.action, checks: flags.checks, minSeverity: flags.minSeverity, includeSystemNamespaces: flags.includeSystem, excludeNamespaces: flags.excludeNamespace };
+      const yaml = renderPolicies(opts);
+      if (flags.out) writeFileSync(flags.out, yaml);
+      else process.stdout.write(yaml);
+      warn(`policy: ${policyDocuments(opts).length / 2} ValidatingAdmissionPolicy + binding pair(s), action ${flags.action}`);
+    });
+
+  program
     .command('fix')
     .description('Apply deterministic fixes from a manifest scan back onto the YAML (comments preserved)')
     .argument('<paths...>', 'YAML files or directories')
