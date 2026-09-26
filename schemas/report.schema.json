@@ -20,9 +20,10 @@
     "source": {
       "enum": [
         "live",
-        "demo"
+        "demo",
+        "manifests"
       ],
-      "description": "live = read from a Kubernetes API; demo = bundled fixture (NOIP_DEMO=1)."
+      "description": "live = read from a Kubernetes API; demo = bundled fixture (NOIP_DEMO=1); manifests = offline YAML (--manifests)."
     },
     "provenance": {
       "type": "object",
@@ -66,8 +67,8 @@
           "properties": {
             "serverVersion": {
               "type": "string",
-              "pattern": "^v[0-9]+\\.[0-9]+",
-              "description": "From the /version API, not kubelet."
+              "pattern": "^(v[0-9]+\\.[0-9]+.*|n/a)$",
+              "description": "From the /version API, not kubelet; n/a for manifest scans."
             },
             "platform": {
               "type": "string"

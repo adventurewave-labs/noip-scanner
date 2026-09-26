@@ -10,6 +10,8 @@ export function renderMarkdown(r: Report): string {
   out.push('# NOIP posture report', '');
   if (r.source === 'demo') {
     out.push('> **DEMO DATA.** This report was generated from the bundled fixture `fixtures/demo-cluster.json`, not a live cluster.', '');
+  } else if (r.source === 'manifests') {
+    out.push('> **OFFLINE MANIFEST SCAN.** Findings describe the YAML as written, not what is running. Namespace-level checks only see Namespace objects present in the input.', '');
   }
   out.push(
     '| | |',
@@ -44,7 +46,7 @@ export function renderMarkdown(r: Report): string {
     out.push(
       `### [${f.severity.toUpperCase()}] ${f.checkId} — ${f.title}`,
       '',
-      `- Resource: \`${resourceKey(f.resource)}\``,
+      `- Resource: \`${resourceKey(f.resource)}\`${f.resource.source ? ` (${f.resource.source.file}${f.resource.source.line ? `:${f.resource.source.line}` : ''})` : ''}`,
       `- Evidence: ${f.evidence}`,
       `- Remediation: ${f.remediation}`,
       `- Controls: ${f.controls.length ? f.controls.join(', ') : '—'}`,

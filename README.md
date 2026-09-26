@@ -35,6 +35,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `--include-system` | Also scan `kube-system`, `kube-public` and `kube-node-lease`. These are skipped by default. |
 | `--exclude-namespace <ns...>` | Skip more namespaces. |
 | `--fail-on <severity>` | Exit `2` if any finding is at or above this severity. Useful as a pipeline gate. |
+| `--manifests <paths...>` | Scan YAML files or directories offline instead of a cluster (see [below](#shift-left-manifest-scanning)). `-` reads stdin. |
 | `--demo` | Scan `fixtures/demo-cluster.json` instead of a cluster (same as `NOIP_DEMO=1`). |
 
 Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · `3` Kubernetes unreachable or forbidden.
@@ -70,6 +71,24 @@ Reports validate against [`schemas/report.schema.json`](schemas/report.schema.js
 - **`controls[]`:** pass/fail per CIS control, with SOC 2 / HIPAA reference mappings and the disclaimer `reference mappings, not an attestation`.
 
 A sample is in [`docs/examples/demo-report.md`](docs/examples/demo-report.md).
+
+## Shift-left manifest scanning
+
+`--manifests` runs the same 14 checks against manifests before they reach a cluster:
+
+```bash
+noip scan --manifests k8s/ --fail-on high                        # plain YAML files or directories
+helm template my-chart | noip scan --manifests - -o sarif         # rendered Helm output
+kustomize build overlays/prod | noip scan --manifests - -o md     # rendered Kustomize output
+```
+
+- **Workloads:** pod templates in Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs and CronJobs (including inside `List` objects) are checked and attributed to the workload.
+- **Locations:** every finding records `file:line`, and SARIF results use that real location.
+- **Report labelling:** reports carry `source: "manifests"`.
+- **Missing namespaces:** objects that don't declare one are treated as `default`.
+- **Limitation:** namespace-level checks only see `Namespace` objects that appear in the input.
+
+In CI, the offline scan of `test/fixtures/misconfig/` has to produce exactly the same golden findings as the live kind scan.
 
 ## SARIF / code scanning
 

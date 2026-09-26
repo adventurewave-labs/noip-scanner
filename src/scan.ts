@@ -3,6 +3,7 @@ import { ALL_CHECKS, SYSTEM_NAMESPACES, type Check } from './checks/index.js';
 import { BENCHMARK, CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
 import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
+import { loadManifests } from './manifests.js';
 import { scannerInfo } from './report/provenance.js';
 import {
   SEVERITIES,
@@ -49,13 +50,14 @@ export function buildReport(
     for (const raw of check.run(snapshot, ctx)) {
       const id = `${check.id}:${resourceKey(raw.resource)}`;
       if (byId.has(id)) continue; // replicas of one workload collapse to one finding
+      const src = snapshot.sources?.[[raw.resource.kind, raw.resource.namespace, raw.resource.name].filter(Boolean).join('/')];
       byId.set(id, {
         id,
         checkId: check.id,
         title: check.title,
         severity: check.severity,
         category: check.category,
-        resource: raw.resource,
+        resource: src ? { ...raw.resource, source: src } : raw.resource,
         evidence: raw.evidence,
         remediation: check.remediation,
         controls: check.controls,
@@ -130,12 +132,15 @@ export function isDemoMode(env: NodeJS.ProcessEnv = process.env): boolean {
  * Scan the live cluster, or the bundled fixture when demo mode is explicitly requested.
  * Live failures throw K8sUnavailable — never a silent fallback to demo data.
  */
-export async function getSnapshot(opts: ScanOptions & { demo?: boolean } = {}): Promise<{ snapshot: ClusterSnapshot; source: DataSource }> {
+export async function getSnapshot(
+  opts: ScanOptions & { demo?: boolean; manifests?: string[] } = {},
+): Promise<{ snapshot: ClusterSnapshot; source: DataSource }> {
   if (opts.demo) return { snapshot: loadDemoSnapshot(), source: 'demo' };
+  if (opts.manifests?.length) return { snapshot: await loadManifests(opts.manifests), source: 'manifests' };
   return { snapshot: await fetchSnapshot(loadKubeConfig(opts)), source: 'live' };
 }
 
-export async function scan(opts: ScanOptions & { demo?: boolean } = {}): Promise<Report> {
+export async function scan(opts: ScanOptions & { demo?: boolean; manifests?: string[] } = {}): Promise<Report> {
   const { snapshot, source } = await getSnapshot(opts);
   return buildReport(snapshot, source, opts);
 }

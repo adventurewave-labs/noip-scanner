@@ -83,3 +83,22 @@ describe('noip scan -o sarif', () => {
     expect(log.runs[0].tool.driver.name).toBe('noip');
   });
 });
+
+describe('noip scan --manifests', () => {
+  it('scans YAML offline and gates with --fail-on', async () => {
+    const dir = new URL('./fixtures/misconfig', import.meta.url).pathname;
+    expect(await runScan({ output: 'json', manifests: [dir], failOn: 'critical' })).toBe(EXIT.FINDINGS_AT_THRESHOLD);
+    expect(JSON.parse(out).source).toBe('manifests');
+  });
+  it('refuses to mix --manifests with cluster flags', async () => {
+    await main(['node', 'noip', 'scan', '--manifests', 'x.yaml', '--demo']);
+    expect(process.exitCode).toBe(EXIT.ERROR);
+    expect(err).toMatch(/cannot be combined/);
+  });
+  it('labels manifest reports in markdown with file:line', async () => {
+    const dir = new URL('./fixtures/misconfig', import.meta.url).pathname;
+    await runScan({ output: 'md', manifests: [dir] });
+    expect(out).toContain('OFFLINE MANIFEST SCAN');
+    expect(out).toMatch(/10-bad-pods\.yaml:4\)/);
+  });
+});

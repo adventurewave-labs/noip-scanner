@@ -51,6 +51,11 @@ jobs:
         run: |
           node dist/cli.js scan --demo --out demo-report.json
           node scripts/validate-report.mjs demo-report.json
+      - name: offline manifest scan of the seeded fixtures matches the same golden
+        run: |
+          node dist/cli.js scan --manifests test/fixtures/misconfig --out manifests-report.json
+          node scripts/validate-report.mjs manifests-report.json
+          node scripts/golden-compare.mjs manifests-report.json --source manifests
 
   kind-scan:
     name: live scan against kind (golden)

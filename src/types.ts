@@ -9,7 +9,8 @@ import type {
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 export const SEVERITIES: readonly Severity[] = ['critical', 'high', 'medium', 'low'];
 
-export type DataSource = 'live' | 'demo';
+/** live = Kubernetes API; demo = bundled fixture; manifests = offline YAML (shift-left). */
+export type DataSource = 'live' | 'demo' | 'manifests';
 
 /** Everything a scan needs, fetched once per scan (see src/k8s/snapshot.ts). */
 export interface ClusterSnapshot {
@@ -21,6 +22,8 @@ export interface ClusterSnapshot {
   networkPolicies: V1NetworkPolicy[];
   clusterRoleBindings: V1ClusterRoleBinding[];
   roleBindings: V1RoleBinding[];
+  /** Manifest scans only: `Kind/namespace/name` (or `Kind/name`) -> where it was declared. */
+  sources?: Record<string, { file: string; line?: number }>;
 }
 
 export interface ResourceRef {

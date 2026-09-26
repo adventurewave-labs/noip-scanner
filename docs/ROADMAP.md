@@ -8,7 +8,7 @@ Status: shipped (`loop/r1-sarif`)
 **Why:** SARIF is the interchange format that kubescape, Trivy and Checkov all emit. Supporting it lets findings flow into GitHub code scanning, DefectDojo and IDEs without any custom glue.
 
 ## 2. Shift-left manifest scanning
-Status: planned
+Status: shipped (`loop/r2-manifests`)
 
 The command is `noip scan --manifests <path>`. It runs the same pure checks over YAML from files, directories, stdin, or rendered `helm template` / `kustomize build` output. Pod templates in workload resources are expanded, and findings point at `file:line`.
 

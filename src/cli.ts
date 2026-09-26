@@ -24,6 +24,7 @@ interface ScanFlags {
   includeSystem?: boolean;
   excludeNamespace?: string[];
   demo?: boolean;
+  manifests?: string[];
   failOn?: Severity;
 }
 
@@ -37,7 +38,11 @@ export async function runScan(flags: ScanFlags): Promise<number> {
     includeSystemNamespaces: flags.includeSystem,
     excludeNamespaces: flags.excludeNamespace,
     demo,
+    manifests: flags.manifests,
   };
+  if (flags.manifests?.length && (flags.demo || flags.kubeconfig || flags.context)) {
+    throw new Error('--manifests cannot be combined with --demo, --kubeconfig or --context');
+  }
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
   if (flags.netinspect) report.network = ingestNetinspect(readFileSync(flags.netinspect, 'utf8'));
@@ -78,6 +83,7 @@ export function buildCli(): Command {
     .option('--netinspect <file>', 'merge a k8s-netinspect JSON result as a "network" section')
     .option('--include-system', 'also scan kube-system, kube-public and kube-node-lease')
     .option('--exclude-namespace <ns...>', 'additional namespaces to skip')
+    .option('--manifests <paths...>', 'scan YAML files/directories offline instead of a cluster ("-" reads stdin, e.g. helm template … | noip scan --manifests -)')
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
     .addOption(new Option('--fail-on <severity>', 'exit 2 if any finding is at or above this severity').choices([...SEVERITIES]))
     .action(async (flags: ScanFlags) => {

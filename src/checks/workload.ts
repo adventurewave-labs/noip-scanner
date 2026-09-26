@@ -17,7 +17,7 @@ export function workloadOf(pod: V1Pod): ResourceRef {
       }
       return { kind: 'ReplicaSet', namespace: ns, name: owner.name };
     }
-    if (['StatefulSet', 'DaemonSet', 'Job', 'ReplicationController'].includes(owner.kind)) {
+    if (['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'ReplicationController'].includes(owner.kind)) {
       return { kind: owner.kind, namespace: ns, name: owner.name };
     }
   }

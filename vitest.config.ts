@@ -13,7 +13,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // R-9: coverage is measured on the retained core only.
-      include: ['src/checks/**', 'src/scan.ts', 'src/report/**', 'src/llm/**', 'src/k8s/**'],
+      include: ['src/checks/**', 'src/scan.ts', 'src/manifests.ts', 'src/report/**', 'src/llm/**', 'src/k8s/**'],
       reporter: ['text-summary', 'json-summary'],
       thresholds,
     },

@@ -153,3 +153,27 @@ describe('rbac checks', () => {
     expect(r.findings.map((f) => [f.id, f.evidence])).toEqual([['NOIP-RBAC-003:RoleBinding/app/rb', 'roleRef=Role/r subject=ServiceAccount/app/default']]);
   });
 });
+
+describe('defensive fallbacks for sparse objects', () => {
+  it('handles bindings and policies with missing metadata and subjects', () => {
+    const r = buildReport(
+      snap({
+        clusterRoleBindings: [
+          { roleRef: { apiGroup: '', kind: 'ClusterRole', name: 'cluster-admin' }, subjects: [{ kind: 'Group', name: 'system:unauthenticated' }, { kind: 'ServiceAccount', name: 'default' }] },
+          { roleRef: { apiGroup: '', kind: 'ClusterRole', name: 'cluster-admin' } },
+        ],
+        roleBindings: [{ roleRef: { apiGroup: '', kind: 'Role', name: 'r' }, subjects: [{ kind: 'ServiceAccount', name: 'default' }] }, { roleRef: { apiGroup: '', kind: 'Role', name: 'r' } }],
+        networkPolicies: [{ spec: { podSelector: {}, egress: [{}] } }],
+        namespaces: [{ metadata: {} }],
+      }),
+      'live',
+    );
+    expect(r.findings.map((f) => f.id).sort()).toEqual([
+      'NOIP-NET-002:NetworkPolicy/default/unknown',
+      'NOIP-RBAC-001:ClusterRoleBinding/unknown',
+      'NOIP-RBAC-002:ClusterRoleBinding/unknown',
+      'NOIP-RBAC-003:RoleBinding/default/unknown',
+    ]);
+    expect(r.findings.find((f) => f.checkId === 'NOIP-RBAC-002')!.evidence).toContain('ServiceAccount/?/default');
+  });
+});

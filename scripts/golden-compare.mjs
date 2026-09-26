@@ -1,8 +1,12 @@
-// Usage: node scripts/golden-compare.mjs report.json [test/golden/kind-findings.json]
+// Usage: node scripts/golden-compare.mjs report.json [--source live|manifests]
 // Asserts the live kind scan found exactly the seeded misconfigurations and nothing in the clean namespace (PRD R-4).
 import { readFileSync } from 'node:fs';
 
-const [reportPath, goldenPath = new URL('../test/golden/kind-findings.json', import.meta.url)] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const reportPath = args[0];
+const sourceIdx = args.indexOf('--source');
+const expectedSource = sourceIdx >= 0 ? args[sourceIdx + 1] : 'live';
+const goldenPath = new URL('../test/golden/kind-findings.json', import.meta.url);
 const raw = readFileSync(reportPath, 'utf8');
 const report = JSON.parse(raw);
 const golden = JSON.parse(readFileSync(goldenPath, 'utf8'));
@@ -13,7 +17,7 @@ const inScope = (r) =>
 const actual = new Set(report.findings.filter((f) => inScope(f.resource)).map((f) => f.id));
 const expected = new Set(golden.expectedFindingIds);
 
-if (report.source !== 'live') errors.push(`report.source is "${report.source}", expected "live"`);
+if (report.source !== expectedSource) errors.push(`report.source is "${report.source}", expected "${expectedSource}"`);
 for (const id of expected) if (!actual.has(id)) errors.push(`MISSING  ${id}`);
 for (const id of actual) if (!expected.has(id)) errors.push(`UNEXPECTED ${id}`);
 
