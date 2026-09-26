@@ -50,6 +50,8 @@ export function inTotoStatement(r: Report, digests: Record<string, string>) {
 
 /** Write the bundle and return the SHA256SUMS content. Refuses to write into a non-empty directory. */
 export function writeBundle(dir: string, r: Report, lang: Lang = 'en', opts: { signKeyPem?: string } = {}): string {
+  // Validate the signing key before writing anything, so a bad key never leaves a half-written bundle.
+  if (opts.signKeyPem) signEnvelope(Buffer.from(''), opts.signKeyPem);
   mkdirSync(dir, { recursive: true });
   if (readdirSync(dir).length) throw new Error(`--bundle: ${dir} is not empty; refusing to mix evidence from different scans`);
   const files = bundleFiles(r, lang);

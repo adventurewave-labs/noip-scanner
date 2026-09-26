@@ -37,7 +37,12 @@ export function renderOscal(r: Report): object {
   const apResource = id('assessment-plan');
   const at = r.provenance.scannedAt;
 
-  const resources = [...new Map(r.findings.map((f) => [resourceKey(f.resource), f.resource])).entries()].sort(([a], [b]) => a.localeCompare(b));
+  // Active and suppressed (accepted-risk) findings both become observations: an accepted risk is still evidence.
+  const all = [
+    ...r.findings.map((f) => ({ f, sup: undefined as undefined | { reason: string; owner: string; expires: string } })),
+    ...(r.suppressed ?? []).map((x) => ({ f: x.finding, sup: x.suppression })),
+  ];
+  const resources = [...new Map(all.map(({ f }) => [resourceKey(f.resource), f.resource])).entries()].sort(([a], [b]) => a.localeCompare(b));
   const inventory = resources.map(([key, res]) => ({
     uuid: id('inventory', key),
     description: `Kubernetes ${res.kind} ${key}`,
@@ -47,46 +52,54 @@ export function renderOscal(r: Report): object {
     ],
   }));
 
-  const observations = r.findings.map((f) => ({
+  const observations = all.map(({ f, sup }) => ({
     uuid: id('observation', f.id),
     title: `${f.checkId}: ${f.title}`,
     description: f.evidence,
     props: [
       { name: 'noip-finding-id', ns: NOIP_NS, value: token(f.id) },
       { name: 'severity', ns: NOIP_NS, value: f.severity },
+      ...(sup ? [{ name: 'accepted-risk', ns: NOIP_NS, value: 'true' }] : []),
     ],
     methods: ['TEST'],
     types: ['finding'],
     subjects: [{ 'subject-uuid': id('inventory', resourceKey(f.resource)), type: 'inventory-item', title: resourceKey(f.resource) }],
     collected: at,
-    remarks: f.remediation,
+    remarks: sup
+      ? `Accepted risk (suppressed in NOIP): reason "${sup.reason}", owner ${sup.owner}, expires ${sup.expires}. Remediation: ${f.remediation}`
+      : f.remediation,
   }));
-  const obsByFinding = new Map(r.findings.map((f, i) => [f.id, observations[i]!.uuid]));
-
-  // Suppressed findings are not in r.findings, so a control can list IDs with no observation here.
-  const related = (ids: string[]) => {
+  const obsByFinding = new Map(all.map(({ f }, i) => [f.id, observations[i]!.uuid]));
+  const relatedObs = (ids: string[]) => {
     const refs = ids.flatMap((fid) => (obsByFinding.has(fid) ? [{ 'observation-uuid': obsByFinding.get(fid)! }] : []));
     return refs.length ? { 'related-observations': refs } : {};
   };
-  const findings = r.controls.map((c) => ({
-    uuid: id('finding', c.id),
-    title: `${c.id}: ${c.title}`,
-    description:
-      c.status === 'pass'
-        ? `No NOIP check mapped to ${c.id} produced a finding.`
-        : `${c.findingIds.length} NOIP finding(s) mapped to ${c.id}.`,
-    target: {
-      type: 'objective-id',
-      'target-id': token(`${c.id}_obj`),
-      status: { state: c.status === 'pass' ? 'satisfied' : 'not-satisfied' },
-    },
-    ...related(c.findingIds),
-  }));
+  const findings = r.controls.map((c) => {
+    // A control is only satisfied when nothing maps to it: suppression accepts a risk, it doesn't remove it.
+    const accepted = (r.suppressed ?? []).filter((x) => x.finding.controls.includes(c.id)).map((x) => x.finding.id);
+    const satisfied = c.status === 'pass' && accepted.length === 0;
+    const parts = [
+      ...(c.findingIds.length ? [`${c.findingIds.length} active NOIP finding(s)`] : []),
+      ...(accepted.length ? [`${accepted.length} finding(s) accepted as risk (suppressed)`] : []),
+    ];
+    return {
+      uuid: id('finding', c.id),
+      title: `${c.id}: ${c.title}`,
+      description: satisfied ? `No NOIP check mapped to ${c.id} produced a finding.` : `${parts.join('; ')} mapped to ${c.id}.`,
+      ...(accepted.length ? { props: [{ name: 'accepted-risk-count', ns: NOIP_NS, value: String(accepted.length) }] } : {}),
+      target: {
+        type: 'objective-id',
+        'target-id': token(`${c.id}_obj`),
+        status: { state: satisfied ? 'satisfied' : 'not-satisfied' },
+      },
+      ...relatedObs([...c.findingIds, ...accepted]),
+    };
+  });
 
   const result = {
     uuid: id('result'),
     title: `NOIP posture scan (${r.source})`,
-    description: `Read-only Kubernetes posture scan of ${r.provenance.cluster.context ?? r.source}: score ${r.summary.score}/100, ${r.summary.findings} finding(s).`,
+    description: `Read-only Kubernetes posture scan of ${r.provenance.cluster.context ?? r.source}: score ${r.summary.score}/100, ${r.summary.findings} finding(s), ${r.summary.suppressed} accepted as risk.`,
     start: at,
     end: at,
     props: [{ name: 'noip-source', ns: NOIP_NS, value: r.source }],

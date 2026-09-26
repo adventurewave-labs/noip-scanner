@@ -19,6 +19,11 @@ const POD_SPEC =
 const CONTAINERS = "variables.spec.containers + (has(variables.spec.initContainers) ? variables.spec.initContainers : [])";
 /** Ephemeral containers (`kubectl debug`), added to running pods through the pods/ephemeralcontainers subresource. */
 const EPHEMERAL = "has(variables.spec.ephemeralContainers) ? variables.spec.ephemeralContainers : []";
+/** On the ephemeralcontainers subresource, only containers not already on the pod: old ones can't be removed, so judging
+ * them again would block every later `kubectl debug` on that pod. */
+const NEW_EPHEMERAL =
+  "request.subResource == 'ephemeralcontainers' && oldObject != null && has(oldObject.spec.ephemeralContainers) ? " +
+  'variables.ephemeral.filter(c, !oldObject.spec.ephemeralContainers.exists(o, o.name == c.name)) : variables.ephemeral';
 
 const sc = (field: string) => `has(c.securityContext) && has(c.securityContext.${field})`;
 const podSc = (field: string) => `has(variables.spec.securityContext) && has(variables.spec.securityContext.${field})`;
@@ -43,7 +48,7 @@ const coversEphemeral = (id: string) => id in CONTAINER_PREDICATES && !EPHEMERAL
 const containerRule = (id: string, p: string) =>
   coversEphemeral(id)
     ? // On the ephemeralcontainers subresource only the debug containers are new; the rest were admitted earlier.
-      `(request.subResource == 'ephemeralcontainers' || variables.containers.all(c, ${p})) && variables.ephemeral.all(c, ${p})`
+      `(request.subResource == 'ephemeralcontainers' || variables.containers.all(c, ${p})) && variables.newEphemeral.all(c, ${p})`
     : `variables.containers.all(c, ${p})`;
 
 export const CEL_RULES: Record<string, string> = {
@@ -117,7 +122,7 @@ export function policyDocuments(opts: PolicyOptions = {}): object[] {
           ? {
               matchConditions: excluded.length ? [{ name: 'not-excluded', expression: `!(object.metadata.name in ${JSON.stringify(excluded).replace(/"/g, "'")})` }] : undefined,
             }
-          : { variables: [{ name: 'spec', expression: POD_SPEC }, { name: 'containers', expression: CONTAINERS }, { name: 'ephemeral', expression: EPHEMERAL }] }),
+          : { variables: [{ name: 'spec', expression: POD_SPEC }, { name: 'containers', expression: CONTAINERS }, { name: 'ephemeral', expression: EPHEMERAL }, { name: 'newEphemeral', expression: NEW_EPHEMERAL }] }),
         validations: [{ expression: rule, message: `${check.id} ${check.title}. ${check.remediation}`, reason: 'Forbidden' }],
       },
     });

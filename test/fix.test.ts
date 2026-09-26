@@ -25,7 +25,8 @@ describe('remediation patches', () => {
     expect(fix('NOIP-POD-006:Deployment/payments/api/migrate')!.patch[0]!.path).toBe('/spec/template/spec/initContainers/0/securityContext/runAsNonRoot');
     // NS-001 enforces the highest level today's pods already meet (never one that would reject them):
     // namespace without labels: create the map (RFC 6902 add needs the parent)
-    expect(fix('NOIP-NS-001:Namespace/default')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'restricted' } }]);
+    // no pods to judge by (review 4): no automatic fix rather than a guess
+    expect(fix('NOIP-NS-001:Namespace/default')).toBeUndefined();
     expect(fix('NOIP-NS-001:Namespace/payments')!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'baseline' } }]);
     // pods below baseline (privileged debug shell, hostPID exporter): no automatic fix
     expect(fix('NOIP-NS-001:Namespace/ci')).toBeUndefined();
@@ -33,6 +34,14 @@ describe('remediation patches', () => {
     // namespace with labels: add the key
     const labelled = buildReport(snap({ namespaces: [{ metadata: { name: 'app', labels: { team: 'a' } } }], networkPolicies: covered, pods: [hardenedPod()] }), 'live');
     expect(labelled.findings.find((f) => f.checkId === 'NOIP-NS-001')!.fix!.patch).toEqual([{ op: 'add', path: '/metadata/labels/pod-security.kubernetes.io~1enforce', value: 'baseline' }]);
+    // every pod meets restricted: restricted, creating the labels map
+    const strict = hardenedPod('app', 'ok', (p) => {
+      p.spec!.securityContext = { ...p.spec!.securityContext, seccompProfile: { type: 'RuntimeDefault' } };
+      p.spec!.containers[0]!.securityContext!.capabilities = { drop: ['ALL'] };
+    });
+    const r2 = buildReport(snap({ namespaces: [{ metadata: { name: 'app' } }], networkPolicies: covered, pods: [strict] }), 'live');
+    expect(r2.findings.find((f) => f.checkId === 'NOIP-NS-001')!.fix!.patch).toEqual([{ op: 'add', path: '/metadata/labels', value: { 'pod-security.kubernetes.io/enforce': 'restricted' } }]);
+    expect(r2.podSecurity!.namespaces[0]!.canEnforce).toBe('restricted');
     // advisory only
     expect(fix('NOIP-NET-001:Namespace/ci')).toBeUndefined();
     expect(fix('NOIP-POD-008:Deployment/shop/frontend/frontend')).toBeUndefined();

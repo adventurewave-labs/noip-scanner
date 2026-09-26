@@ -268,10 +268,17 @@ export interface PodPsa {
   restricted: string[];
 }
 
+/** Drop null values, as the API server does when it decodes an object (Go nil / zero value). YAML `key:` means null. */
+export function stripNulls<T>(v: T, keepArrayPositions = false): T {
+  if (Array.isArray(v)) return (keepArrayPositions ? v : v.filter((x) => x != null)).map((x) => stripNulls(x, keepArrayPositions)) as T;
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([, x]) => x != null).map(([k, x]) => [k, stripNulls(x, keepArrayPositions)])) as T;
+  return v;
+}
+
 export function evaluatePod(pod: Pick<V1Pod, 'metadata' | 'spec'>, minor = PSA_LATEST_MINOR): PodPsa {
   const m = Math.max(PSA_OLDEST_MINOR, Math.min(minor, PSA_LATEST_MINOR));
-  const meta = pod.metadata ?? {};
-  const spec = pod.spec ?? { containers: [] };
+  const meta = stripNulls(pod.metadata ?? {});
+  const spec = stripNulls(pod.spec ?? { containers: [] });
   const active = PSA_CHECKS.filter((c) => c.since <= m);
   const overridden = new Set(active.filter((c) => c.level === 'restricted').flatMap((c) => c.overrides ?? []));
   const violations = (cs: PsaCheck[]) => cs.flatMap((c) => c.run(meta, spec, m) ?? []).map(String);

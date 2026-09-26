@@ -123,32 +123,36 @@ export function createApp(deps: AppDeps) {
   });
 
   // Prometheus: cached scan, one scan in flight at a time, failures reported as noip_up 0 with the last good values.
-  const clock = deps.now ?? Date.now;
+  // Intervals use a monotonic clock, so a wall-clock step can't freeze or bypass the cache.
+  const clock = deps.now ?? (() => performance.now());
   const ttlMs = (deps.metricsTtlSeconds ?? 300) * 1000;
   let last: { report: Report; at: number } | undefined;
-  let state: ScrapeState = { up: false };
-  let attemptAt = -Infinity;
+  let state: ScrapeState = { up: false, failures: 0 };
+  let failedAt = -Infinity;
   let inflight: Promise<void> | undefined;
   const refresh = async () => {
     const t0 = clock();
-    attemptAt = t0;
     try {
       const opts = { demo: deps.demo, suppressions: deps.ignoreFile ? loadIgnoreFile(deps.ignoreFile) : undefined };
       const { snapshot, source } = await getSnap(opts);
       last = { report: buildReport(snapshot, source, opts), at: clock() };
-      state = { up: true, durationSeconds: (clock() - t0) / 1000 };
+      state = { up: true, durationSeconds: (clock() - t0) / 1000, failures: state.failures };
     } catch (err) {
-      state = { up: false, lastError: err instanceof K8sUnavailable ? 'K8sUnavailable' : 'Error' };
-      log('warn', `metrics scan failed: ${(err as Error).message}`);
+      failedAt = clock(); // back off from when the attempt ended: a slow timeout must not bypass the backoff
+      state = { up: false, failures: state.failures + 1 };
+      log('warn', `metrics scan failed (${err instanceof K8sUnavailable ? 'K8sUnavailable' : 'Error'}): ${(err as Error).message}`);
     }
   };
   api.get('/metrics', async (_req, res) => {
-    const now = clock();
-    const stale = !last || now - last.at >= ttlMs;
-    const mayRetry = state.up || now - attemptAt >= METRICS_RETRY_MS;
-    if (stale && mayRetry) {
-      inflight ??= refresh().finally(() => (inflight = undefined));
-      await inflight;
+    if (inflight) await inflight; // concurrent scrapes wait for the scan already running
+    else {
+      const now = clock();
+      const stale = !last || now - last.at >= ttlMs;
+      const mayRetry = state.up || now - failedAt >= METRICS_RETRY_MS;
+      if (stale && mayRetry) {
+        inflight = refresh().finally(() => (inflight = undefined));
+        await inflight;
+      }
     }
     res.set('Content-Type', METRICS_CONTENT_TYPE).send(renderMetrics(last?.report, state));
   });

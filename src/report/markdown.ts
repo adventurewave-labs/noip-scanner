@@ -110,7 +110,7 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
   out.push('', `_${L.disclaimer(r.mappingDisclaimer)}_`, '');
 
   for (const run of r.imported ?? []) {
-    out.push(`## ${t.imported}: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', t.importedFrom(code(run.inputFile), run.inputSha256.slice(0, 12)), '');
+    out.push(`## ${t.imported}: ${esc(run.tool)}${run.version ? ` ${esc(run.version)}` : ''}`, '', t.importedFrom(code(run.inputFile), String(run.inputSha256).replace(/[^0-9a-f]/gi, '').slice(0, 12)), '');
     if (!run.results.length) out.push(t.noResults, '');
     else {
       out.push(`| ${t.importedCols.join(' | ')} |`, '|---|---|---|---|');
@@ -120,7 +120,7 @@ export function renderMarkdown(r: Report, lang: Lang = 'en'): string {
   }
 
   if (r.podSecurity?.namespaces.length) {
-    out.push(`## ${t.psa}`, '', t.psaNote(r.podSecurity.policyVersion), '');
+    out.push(`## ${t.psa}`, '', t.psaNote(esc(String(r.podSecurity.policyVersion))), '');
     out.push(`| ${t.psaCols.join(' | ')} |`, '|---|---|---|---|---|');
     for (const n of r.podSecurity.namespaces) {
       // Table cells: mdSafe everything (a report rendered with `noip render` is untrusted input).

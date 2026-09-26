@@ -53,13 +53,15 @@ export function fixFor(
   f: Finding,
   byWorkload: Map<string, V1Pod>,
   nsHasLabels: (name: string) => boolean,
-  canEnforce: (name: string) => PsaLevel,
+  readiness: (name: string) => { canEnforce: PsaLevel; pods: number } | undefined,
 ): Fix | undefined {
   if (f.checkId === 'NOIP-NS-001') {
     // Enforce the highest level today's pods already meet, so the label never rejects a current workload
-    // on its next rollout. A namespace with pods below baseline gets no automatic fix (see the readiness table).
-    const level = canEnforce(f.resource.name);
-    if (level === 'privileged') return undefined;
+    // on its next rollout. No automatic fix when pods are below baseline, or when there are no pods to judge
+    // by (scaled to zero, CronJobs between runs, or workloads defined elsewhere): see the readiness table.
+    const ns = readiness(f.resource.name);
+    if (!ns || ns.pods === 0 || ns.canEnforce === 'privileged') return undefined;
+    const level = ns.canEnforce;
     const key = 'pod-security.kubernetes.io/enforce';
     const current = f.evidence.match(/=(\w+)$/)?.[1];
     if (current === level) return undefined;
@@ -107,7 +109,7 @@ export function fixFor(
 }
 
 /** Attach `fix` to every finding that has a deterministic remediation. */
-export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot, canEnforce?: ReadonlyMap<string, PsaLevel>): void {
+export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot, readiness?: ReadonlyMap<string, { canEnforce: PsaLevel; pods: number }>): void {
   const byWorkload = new Map<string, V1Pod>();
   for (const p of snapshot.pods) {
     const key = resourceKey(workloadOf(p));
@@ -115,7 +117,7 @@ export function attachFixes(findings: Finding[], snapshot: ClusterSnapshot, canE
   }
   const labelled = new Map(snapshot.namespaces.map((n) => [n.metadata?.name, Boolean(n.metadata?.labels)]));
   for (const f of findings) {
-    const fx = fixFor(f, byWorkload, (name) => labelled.get(name) ?? false, (name) => canEnforce?.get(name) ?? 'restricted');
+    const fx = fixFor(f, byWorkload, (name) => labelled.get(name) ?? false, (name) => readiness?.get(name));
     if (fx) f.fix = fx;
   }
   // Several findings on one container that has no securityContext each `add` the whole object; applied in

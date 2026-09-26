@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { stripNulls } from './psa.js';
 import { extname, join, relative } from 'node:path';
 import type {
   V1ClusterRoleBinding,
@@ -62,7 +63,9 @@ export function parseManifestText(text: string, file: string): Array<{ obj: K8sO
     if (doc.errors.length) throw new ManifestError(`${file}: ${doc.errors[0]!.message.split('\n')[0]}`);
     let obj: K8sObject | null;
     try {
-      obj = doc.toJS({ maxAliasCount: 100 }) as K8sObject | null; // bounded alias expansion (billion-laughs guard)
+      // Bounded alias expansion (billion-laughs guard). Null fields (`key:` with no value) are dropped, as the API
+      // server does on decode; list positions are kept so source line numbers still line up.
+      obj = stripNulls(doc.toJS({ maxAliasCount: 100 }) as K8sObject | null, true);
     } catch (err) {
       // e.g. unresolved alias `*x`, or alias expansion over the limit: found by the fuzz tests
       throw new ManifestError(`${file}: ${(err as Error).message.split('\n')[0]}`);

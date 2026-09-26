@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T20:53:03.635Z |
+| Scanned at | 2026-09-26T21:19:09.241Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `a04db7c850a6` |
+| Scanner | noip 0.1.0 @ `62f9c2bef9ff` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
@@ -19,7 +19,7 @@ Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/
 
 ## Executive summary
 
-Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 13 have a deterministic fix.
+Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 12 have a deterministic fix.
 
 Fix these first (deterministic ranking: severity, then blast radius, then reach):
 
@@ -29,7 +29,7 @@ Fix these first (deterministic ranking: severity, then blast radius, then reach)
 4. **NOIP-NET-001: Namespace has no NetworkPolicy**: high, namespace-scoped, 3 resource(s) (e.g. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
 5. **NOIP-POD-006: Container may run as root**: high, workload-scoped, 3 resource(s), 3 auto-fixable (e.g. `Deployment/payments/api`, `Pod/ci/debug-shell`)
 
-Quick wins with a deterministic fix: **13** · need a design decision: **12**
+Quick wins with a deterministic fix: **12** · need a design decision: **13**
 
 ## Findings
 

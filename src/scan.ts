@@ -80,7 +80,7 @@ export function buildReport(
   const all = [...byId.values()].filter((f) => sevRank(f.severity) <= floor).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.id.localeCompare(b.id));
   const minor = Number(parseVersion(snapshot.serverVersion.gitVersion)?.minor.split('.')[1] ?? PSA_LATEST_MINOR);
   const podSecurity = podSecurityReadiness(snapshot.pods, snapshot.namespaces, ctx.excludedNamespaces, (p) => resourceKey(workloadOf(p)), minor);
-  attachFixes(all, snapshot, new Map(podSecurity.namespaces.map((n) => [n.namespace, n.canEnforce])));
+  attachFixes(all, snapshot, new Map(podSecurity.namespaces.map((n) => [n.namespace, n])));
   const sup = opts.suppressions ? applySuppressions(all, opts.suppressions, opts.now) : undefined;
   const findings = sup ? sup.active : all;
 

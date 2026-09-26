@@ -94,7 +94,7 @@ Reports include a `podSecurity` section: for each namespace, the highest [Pod Se
 
 - **Evaluation.** `src/psa.ts` is a port of the upstream Pod Security Admission checks ([kubernetes/pod-security-admission](https://github.com/kubernetes/pod-security-admission), Apache-2.0). It is version-aware: it uses the cluster's minor version, capped at 1.37, and `latest` rules for manifest scans.
 - **Conformance.** `test/psa.test.ts` runs upstream's own pass/fail fixtures (820 pods, policy versions 1.23 to 1.37, vendored under `test/fixtures/psa/` with their license) and requires the same verdict for every one.
-- **Fixes.** The NS-001 fix labels a namespace with the level its pods already meet. A namespace whose pods don't meet baseline gets no automatic fix; fix the pods first, then run `noip fix` again.
+- **Fixes.** The NS-001 fix labels a namespace with the level its pods already meet. A namespace whose pods don't meet baseline gets no automatic fix; fix the pods first, then run `noip fix` again. Neither does a namespace with no pods to judge by (scaled to zero, CronJobs between runs, workloads defined elsewhere). YAML nulls (`key:` with no value) are treated as absent, as the API server does.
 - **Scoring.** Readiness is a planning aid. It doesn't change the score and doesn't use a check slot.
 
 ## Report
@@ -156,7 +156,7 @@ Findings are matched by their stable ID. The diff reports:
 
 It warns when the two reports come from different sources, targets or namespace scopes. It's designed for monthly retainer reviews, where the question is "what got worse since last time?"
 
-`noip render report.json -o md|html|sarif [--lang es]` re-renders a saved report without rescanning.
+`noip render report.json -o md|html|sarif|oscal [--lang es]` re-renders a saved report without rescanning.
 
 ## Posture history: `noip history`
 
@@ -268,14 +268,14 @@ repos:
         args: [--fail-on, critical]   # default: high
 ```
 
-`noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Put paths before options that take several values (`--import-sarif`, `--contexts`), or after `--`. Well-formed non-Kubernetes YAML is ignored; YAML that doesn't parse fails the hook. Helm chart `templates/` are excluded, since they are Go templates; scan `helm template … | noip scan --manifests -` instead. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
+`noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Put paths before options that take several values (`--import-sarif`, `--contexts`), or after `--`. Well-formed non-Kubernetes YAML is ignored; YAML that doesn't parse fails the hook. Any directory named `templates/` is excluded, because in Helm charts those are Go templates rather than YAML (this also skips a plain-YAML folder with that name); scan `helm template … | noip scan --manifests -` instead. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
 
 ## OSCAL assessment results
 
 `-o oscal` (on `scan`, `render` and fleet runs) emits [NIST OSCAL](https://pages.nist.gov/OSCAL/) 1.2.3 Assessment Results JSON, for GRC tools that ingest OSCAL. Evidence bundles include it as `report.oscal.json`.
 
 - One observation per finding (evidence, severity, remediation, the affected resource as an inventory item).
-- One OSCAL finding per mapped CIS control, marked `satisfied` or `not-satisfied`, linked to its observations.
+- One OSCAL finding per mapped CIS control, marked `satisfied` or `not-satisfied`, linked to its observations. Suppressed findings are included as observations with an `accepted-risk` prop and their reason, owner and expiry, and their controls are `not-satisfied`: accepting a risk doesn't make a control pass.
 - UUIDs are deterministic (v5), so the same report always produces the same document.
 - Tests validate the output against the official OSCAL schema, vendored in `schemas/vendor/`.
 
@@ -328,7 +328,7 @@ NOIP_API_TOKEN=$(openssl rand -hex 24) node dist/api/server.js     # or docker b
 
 The server refuses to start without `NOIP_API_TOKEN` (or `NOIP_API_TOKEN_FILE`), which must be at least 16 characters. `deploy/deployment.yaml` mounts the token as a file, so NOIP does not trip its own NOIP-POD-009 check. There is no user database, no MFA, and no Mongo or Redis ([ADR-0002](docs/adr/0002-bearer-token-auth.md)).
 
-**Prometheus.** `/api/metrics` reuses one scan for `NOIP_METRICS_TTL` seconds (default 300, minimum 10), and concurrent scrapes share a single in-flight scan, so a 15-second scrape interval doesn't turn into a full cluster list every 15 seconds. If a scan fails, `noip_up` becomes 0 with an `error` label and the last good values stay visible; retries happen at most every 30 seconds. Example scrape job: `authorization: {credentials_file: /etc/noip/token}` against `/api/metrics`. Alert on `noip_up == 0`, a drop in `noip_posture_score`, or `noip_findings{severity="critical"} > 0`.
+**Prometheus.** `/api/metrics` reuses one scan for `NOIP_METRICS_TTL` seconds (default 300, minimum 10), and concurrent scrapes share a single in-flight scan, so a 15-second scrape interval doesn't turn into a full cluster list every 15 seconds. If a scan fails, `noip_up` becomes 0, `noip_scan_failures_total` increases and the last good values stay visible; retries happen at most every 30 seconds after a failed attempt ends. Label sets never change between passing and failing, so series don't churn. Example scrape job: `authorization: {credentials_file: /etc/noip/token}` against `/api/metrics`. Alert on `noip_up == 0`, a drop in `noip_posture_score`, or `noip_findings{severity="critical"} > 0`.
 
 **Railway preview:** `railway.json` builds the Dockerfile. Set `NOIP_DEMO=1` and `NOIP_API_TOKEN` on the service. No cluster credential ever goes to Railway.
 

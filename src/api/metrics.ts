@@ -1,3 +1,4 @@
+import { ALL_CHECKS } from '../checks/index.js';
 import { SEVERITIES, type Report } from '../types.js';
 
 /**
@@ -21,8 +22,8 @@ export interface ScrapeState {
   up: boolean;
   /** Seconds the most recent successful scan took. */
   durationSeconds?: number;
-  /** Error class of the most recent failed attempt, e.g. K8sUnavailable. */
-  lastError?: string;
+  /** Failed scan attempts since the process started (a counter). */
+  failures: number;
 }
 
 export function renderMetrics(r: Report | undefined, state: ScrapeState): string {
@@ -31,7 +32,9 @@ export function renderMetrics(r: Report | undefined, state: ScrapeState): string
     out.push(`# HELP ${name} ${help}`, `# TYPE ${name} ${type}`);
     for (const [l, v] of samples) out.push(`${name}${labels(l)} ${Number.isFinite(v) ? v : 'NaN'}`);
   };
-  metric('noip_up', 'gauge', 'Whether the most recent scan attempt succeeded (1) or failed (0).', [[state.lastError ? { error: state.lastError } : {}, state.up ? 1 : 0]]);
+  // Label sets stay stable over time (no label that appears only on failure), so series don't churn.
+  metric('noip_up', 'gauge', 'Whether the most recent scan attempt succeeded (1) or failed (0).', [[{}, state.up ? 1 : 0]]);
+  metric('noip_scan_failures_total', 'counter', 'Failed scan attempts since the server started.', [[{}, state.failures]]);
   if (!r) return out.join('\n') + '\n';
 
   metric('noip_info', 'gauge', 'Scanner and target of the last successful scan.', [
@@ -43,12 +46,13 @@ export function renderMetrics(r: Report | undefined, state: ScrapeState): string
   metric('noip_findings', 'gauge', 'Reported findings by severity (suppressed findings excluded).', SEVERITIES.map((s) => [{ severity: s }, r.summary.bySeverity[s]]));
   metric('noip_suppressed_findings', 'gauge', 'Findings hidden by a live accepted-risk suppression.', [[{}, r.summary.suppressed]]);
   const failed = new Set(r.findings.map((f) => f.checkId));
-  const sev = new Map(r.findings.map((f) => [f.checkId, f.severity]));
+  // The check's own severity, from the registry, so the label set is the same whether it passes or fails.
+  const sev = new Map(ALL_CHECKS.map((c) => [c.id, c.severity]));
   metric(
     'noip_check_failed',
     'gauge',
     'Whether each check that ran has at least one finding (1) or none (0).',
-    r.provenance.checksRun.map((c) => [{ check: c, ...(sev.has(c) ? { severity: sev.get(c)! } : {}) }, failed.has(c) ? 1 : 0]),
+    r.provenance.checksRun.map((c) => [{ check: c, severity: sev.get(c) ?? 'unknown' }, failed.has(c) ? 1 : 0]),
   );
   metric('noip_controls_failed', 'gauge', 'Mapped CIS controls with at least one finding.', [[{}, r.summary.controlsFailed]]);
   if (r.provenance.cluster.versionSupport?.daysLeft !== undefined) {

@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T20:53:03.635Z |
+| Fecha del análisis | 2026-09-26T21:19:09.241Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `a04db7c850a6` |
+| Escáner | noip 0.1.0 @ `62f9c2bef9ff` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
@@ -19,7 +19,7 @@ Puntaje **12/100** · 25 hallazgo(s) · 2 crítico, 9 alto, 12 medio, 2 bajo · 
 
 ## Resumen ejecutivo
 
-Puntaje 12/100. 25 hallazgo(s) (2 críticos, 9 altos) en 14 de 15 revisiones; 13 tienen una corrección determinista.
+Puntaje 12/100. 25 hallazgo(s) (2 críticos, 9 altos) en 14 de 15 revisiones; 12 tienen una corrección determinista.
 
 Corregir primero (orden determinista: severidad, luego alcance, luego número de recursos):
 
@@ -29,7 +29,7 @@ Corregir primero (orden determinista: severidad, luego alcance, luego número de
 4. **NOIP-NET-001: Namespace sin NetworkPolicy**: alto, alcance: namespace, 3 recurso(s) (p. ej. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
 5. **NOIP-POD-006: El contenedor podría ejecutarse como root**: alto, alcance: carga de trabajo, 3 recurso(s), 3 con corrección automática (p. ej. `Deployment/payments/api`, `Pod/ci/debug-shell`)
 
-Mejoras rápidas con corrección determinista: **13** · requieren una decisión de diseño: **12**
+Mejoras rápidas con corrección determinista: **12** · requieren una decisión de diseño: **13**
 
 ## Hallazgos
 

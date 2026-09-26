@@ -28,7 +28,7 @@ function parse(text: string): Map<string, number> {
 describe('renderMetrics', () => {
   it('exposes score, findings, failed checks, support days and Pod Security readiness', () => {
     const r = buildReport(loadDemoSnapshot(), 'demo', { now: new Date('2026-09-26T00:00:00Z') });
-    const m = parse(renderMetrics(r, { up: true, durationSeconds: 0.25 }));
+    const m = parse(renderMetrics(r, { up: true, durationSeconds: 0.25, failures: 0 }));
     expect(m.get('noip_up')).toBe(1);
     expect(m.get('noip_posture_score')).toBe(r.summary.score);
     expect(m.get('noip_findings{severity="critical"}')).toBe(r.summary.bySeverity.critical);
@@ -38,16 +38,20 @@ describe('renderMetrics', () => {
     expect(m.get('noip_kubernetes_support_days_left{minor="1.31"}')).toBeLessThan(0);
     expect(m.get('noip_namespace_pod_security_level{namespace="shop"}')).toBe(2);
     expect(m.get('noip_namespace_pod_security_level{namespace="ci"}')).toBe(0);
-    const passing = r.provenance.checksRun.find((c) => !r.findings.some((f) => f.checkId === c));
-    if (passing) expect(m.get(`noip_check_failed{check="${passing}"}`)).toBe(0);
+    // stable label sets: a passing check carries its severity too
+    const failedPass = buildReport(loadDemoSnapshot(), 'demo', { excludeNamespaces: ['ci'] });
+    const m2 = parse(renderMetrics(failedPass, { up: true, failures: 0 }));
+    expect(m2.get('noip_check_failed{check="NOIP-POD-001",severity="critical"}')).toBe(0);
   });
 
   it('reports a failed scan without data, and escapes label values', () => {
-    expect(parse(renderMetrics(undefined, { up: false, lastError: 'K8sUnavailable' })).get('noip_up{error="K8sUnavailable"}')).toBe(0);
+    const down = parse(renderMetrics(undefined, { up: false, failures: 3 }));
+    expect(down.get('noip_up')).toBe(0);
+    expect(down.get('noip_scan_failures_total')).toBe(3);
     expect(labelValue('a"b\\c\nd')).toBe('a\\"b\\\\c\\nd');
     const r = buildReport(loadDemoSnapshot(), 'demo');
     r.provenance.cluster.context = 'x"}\n evil 1';
-    const text = renderMetrics(r, { up: true });
+    const text = renderMetrics(r, { up: true, failures: 0 });
     expect(text).toContain('context="x\\"}\\n evil 1"');
     parse(text);
   });
@@ -71,8 +75,9 @@ describe('GET /api/metrics', () => {
       return demoSnap();
     });
     const app = createApp({ token: TOKEN, demo: false, snapshot, metricsTtlSeconds: 60, now: () => t });
-    await Promise.all([request(app).get('/api/metrics').set(auth), request(app).get('/api/metrics').set(auth)]);
-    expect(snapshot).toHaveBeenCalledTimes(1); // concurrent scrapes share the scan
+    const both = await Promise.all([request(app).get('/api/metrics').set(auth), request(app).get('/api/metrics').set(auth)]);
+    expect(snapshot).toHaveBeenCalledTimes(1); // concurrent scrapes share the scan…
+    for (const r of both) expect(parse(r.text).get('noip_up')).toBe(1); // …and both wait for it (no spurious "down")
     t += 59_000;
     await request(app).get('/api/metrics').set(auth);
     expect(snapshot).toHaveBeenCalledTimes(1); // still fresh
@@ -80,7 +85,8 @@ describe('GET /api/metrics', () => {
     fail = true;
     const down = parse((await request(app).get('/api/metrics').set(auth)).text);
     expect(snapshot).toHaveBeenCalledTimes(2);
-    expect(down.get('noip_up{error="K8sUnavailable"}')).toBe(0);
+    expect(down.get('noip_up')).toBe(0);
+    expect(down.get('noip_scan_failures_total')).toBe(1);
     expect(down.has('noip_posture_score')).toBe(true); // last good values kept
     t += 10_000;
     await request(app).get('/api/metrics').set(auth);
@@ -92,8 +98,32 @@ describe('GET /api/metrics', () => {
     expect(up.get('noip_up')).toBe(1);
   });
 
+  it('makes a scrape during a slow first scan wait, and backs off from the end of a slow failure', async () => {
+    let t = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    const snapshot = async () => {
+      calls++;
+      await gate;
+      t += 45_000; // a 45 s API timeout
+      throw new K8sUnavailable('timeout');
+    };
+    const app = createApp({ token: TOKEN, demo: false, snapshot, now: () => t });
+    const a = request(app).get('/api/metrics').set(auth).then((r) => r.text);
+    await new Promise((r) => setTimeout(r, 20));
+    const b = request(app).get('/api/metrics').set(auth).then((r) => r.text);
+    await new Promise((r) => setTimeout(r, 20));
+    release();
+    await Promise.all([a, b]);
+    expect(calls).toBe(1);
+    t += 1_000;
+    await request(app).get('/api/metrics').set(auth);
+    expect(calls).toBe(1); // backoff counted from when the 45 s attempt ended
+  });
+
   it('labels non-Kubernetes failures generically', async () => {
     const app = createApp({ token: TOKEN, demo: false, snapshot: async () => { throw new Error('boom'); } });
-    expect(parse((await request(app).get('/api/metrics').set(auth)).text).get('noip_up{error="Error"}')).toBe(0);
+    expect(parse((await request(app).get('/api/metrics').set(auth)).text).get('noip_up')).toBe(0);
   });
 });

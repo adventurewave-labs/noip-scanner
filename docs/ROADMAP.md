@@ -91,11 +91,11 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 25 | Policy-as-code export: ValidatingAdmissionPolicy (CEL) | shipped (`loop/r25-policy`) |
 | 26 | Distribution: composite GitHub Action and pre-commit hook | shipped (`loop/r26-distribution`) |
 | 27 | Independent review #3, with fixes (9 confirmed defects, including an XSS in history HTML) | shipped (`loop/r27-review3`) |
-| 28 | Pod Security readiness: which level each namespace could enforce today, via a port of the upstream PSA checks, conformance-tested against upstream fixtures; NS-001 fixes never pick a level that would reject current pods | shipped (`loop/r28-psa-readiness`) |
+| 28 | Pod Security readiness: which level each namespace could enforce today, via a port of the upstream PSA checks, conformance-tested against upstream fixtures; NS-001 fixes only pick a level every current pod meets, and none when a namespace has no pods to judge by | shipped (`loop/r28-psa-readiness`) |
 | 29 | Compliance export: OSCAL 1.2.3 assessment results (`-o oscal`, in bundles), validated against the official schema | shipped (`loop/r29-oscal`) |
 | 30 | Signed evidence bundles: DSSE envelope over the in-toto statement (Ed25519 / ECDSA P-256, operator's key); `verify-bundle --key`; cross-checked with cosign | shipped (`loop/r30-dsse`) |
 | 31 | Prometheus metrics (`GET /api/metrics`): cached scan, single-flight, failure backoff, last good values kept | shipped (`loop/r31-metrics`) |
-| 32 | Independent review #4, with fixes | planned |
+| 32 | Independent review #4, with fixes (8 confirmed: metrics single-flight and backoff, YAML-null PSA handling, pod-less namespace fixes, OSCAL accepted risk, two markdown escapes, half-written signed bundles) | shipped (`loop/r32-review4`) |
 | 33 | Wrap-up | planned |
 
 ## Later

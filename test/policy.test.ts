@@ -18,10 +18,11 @@ const docs = (opts = {}) => policyDocuments(opts) as Doc[];
 const policies = () => docs().filter((d) => d.kind === 'ValidatingAdmissionPolicy');
 
 /** Evaluate a generated policy the way the API server does: variables first, then the validation. */
-function admits(policy: Doc, object: unknown, request = { operation: 'CREATE', subResource: '' }): boolean {
+function admits(policy: Doc, object: unknown, request = { operation: 'CREATE', subResource: '' }, oldObject: unknown = null): boolean {
   const variables: Record<string, unknown> = {};
-  for (const v of (policy.spec.variables ?? []) as Array<{ name: string; expression: string }>) variables[v.name] = evaluate(v.expression, { object, variables, request });
-  return (policy.spec.validations as Array<{ expression: string }>).every((x) => evaluate(x.expression, { object, variables, request }) === true);
+  const ctx = { object, oldObject, variables, request };
+  for (const v of (policy.spec.variables ?? []) as Array<{ name: string; expression: string }>) variables[v.name] = evaluate(v.expression, ctx);
+  return (policy.spec.validations as Array<{ expression: string }>).every((x) => evaluate(x.expression, ctx) === true);
 }
 
 const byId = (id: string) => policies().find((p) => p.metadata.name === id.toLowerCase())!;
@@ -154,6 +155,12 @@ describe('CEL rules agree with the checks', () => {
     for (const id of ['NOIP-POD-001', 'NOIP-POD-005', 'NOIP-POD-006', 'NOIP-POD-007', 'NOIP-POD-009']) expect(admits(byId(id), withDebug(hardenedDebug), sub), id).toBe(true);
     // …but a privileged one is flagged, and the regular containers are still checked on CREATE.
     expect(admits(byId('NOIP-POD-001'), withDebug({ ...hardenedDebug, securityContext: { privileged: true } }), sub)).toBe(false);
+    // Review 4: an old privileged debug container (can't be removed) must not block a later, hardened one.
+    const old = withDebug({ ...hardenedDebug, name: 'old', securityContext: { privileged: true } });
+    const next = { ...old, spec: { ...old.spec, ephemeralContainers: [...old.spec.ephemeralContainers, { ...hardenedDebug, name: 'new' }] } };
+    expect(admits(byId('NOIP-POD-001'), next, sub, old)).toBe(true);
+    const nextBad = { ...old, spec: { ...old.spec, ephemeralContainers: [...old.spec.ephemeralContainers, { ...hardenedDebug, name: 'new', securityContext: { privileged: true } }] } };
+    expect(admits(byId('NOIP-POD-001'), nextBad, sub, old)).toBe(false);
     expect(admits(byId('NOIP-POD-007'), withDebug(hardenedDebug))).toBe(false);
   });
 
