@@ -5,6 +5,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { ALL_CHECKS } from './checks/index.js';
 import { CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
+import { REFERENCES } from './checks/references.js';
 import { scannerInfo } from './report/provenance.js';
 import { buildReport, getSnapshot } from './scan.js';
 import { SEVERITIES, type Severity } from './types.js';
@@ -107,7 +108,7 @@ export function createMcpServer(opts: McpOptions = {}): McpServer {
     },
     async () =>
       json({
-        checks: ALL_CHECKS.map(({ id, title, severity, category, controls, remediation }) => ({ id, title, severity, category, controls, remediation })),
+        checks: ALL_CHECKS.map(({ id, title, severity, category, controls, remediation }) => ({ id, title, severity, category, controls, remediation, references: REFERENCES[id] })),
         mappingDisclaimer: MAPPING_DISCLAIMER,
       }),
   );

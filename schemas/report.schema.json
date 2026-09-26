@@ -302,6 +302,28 @@
                 }
               }
             }
+          },
+          "references": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nsaCisa",
+              "nist800190"
+            ],
+            "properties": {
+              "nsaCisa": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "nist800190": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -609,6 +631,28 @@
                         },
                         "value": {}
                       }
+                    }
+                  }
+                }
+              },
+              "references": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "nsaCisa",
+                  "nist800190"
+                ],
+                "properties": {
+                  "nsaCisa": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "nist800190": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
                     }
                   }
                 }

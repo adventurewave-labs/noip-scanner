@@ -47,6 +47,8 @@ export interface Finding {
   evidence: string;
   remediation: string;
   controls: string[];
+  /** Reference mappings to NSA/CISA and NIST SP 800-190 guidance (navigation aids, not an attestation). */
+  references?: { nsaCisa: string[]; nist800190: string[] };
   /** Deterministic RFC 6902 patch against the resource's own object, when one exists (see src/remediation.ts). */
   fix?: { description: string; patch: Array<{ op: 'add' | 'replace' | 'remove'; path: string; value?: unknown }> };
 }

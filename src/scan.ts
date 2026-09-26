@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { ALL_CHECKS, SYSTEM_NAMESPACES, type Check } from './checks/index.js';
 import { BENCHMARK, CONTROLS, MAPPING_DISCLAIMER } from './checks/controls.js';
+import { REFERENCES } from './checks/references.js';
 import { loadKubeConfig, type KubeOptions } from './k8s/client.js';
 import { fetchSnapshot } from './k8s/snapshot.js';
 import { loadManifests } from './manifests.js';
@@ -67,6 +68,7 @@ export function buildReport(
         evidence: raw.evidence,
         remediation: check.remediation,
         controls: check.controls,
+        ...(REFERENCES[check.id] ? { references: REFERENCES[check.id] } : {}),
       });
     }
   }

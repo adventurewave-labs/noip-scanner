@@ -51,6 +51,7 @@ export function renderMarkdown(r: Report): string {
       `- Evidence: ${f.evidence}`,
       `- Remediation: ${f.remediation}`,
       `- Controls: ${f.controls.length ? f.controls.join(', ') : '—'}`,
+      ...(f.references ? [`- References: NSA/CISA ${f.references.nsaCisa.join('; ') || '—'} · NIST SP 800-190 ${f.references.nist800190.join('; ') || '—'}`] : []),
       `- Finding ID: \`${f.id}\``,
       '',
     );

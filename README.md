@@ -65,6 +65,8 @@ Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · 
 | NOIP-RBAC-002 | high | `cluster-admin` bound to a `default` ServiceAccount | 5.1.1, 5.1.5 |
 | NOIP-RBAC-003 | medium | A RoleBinding grants to a `default` ServiceAccount | 5.1.5 |
 
+Each finding also carries `references` to the relevant section of the **NSA/CISA Kubernetes Hardening Guide v1.2** and to the matching **NIST SP 800-190** section-4 risk. These, like the CIS/SOC 2/HIPAA mappings, are navigation aids, not an attestation.
+
 Each check is a pure function over lists fetched once per scan (`src/checks/`). Container checks cover `containers`, `initContainers` and `ephemeralContainers`, so a privileged `kubectl debug` session is caught.
 
 Each pod is attributed to the workload that owns it:

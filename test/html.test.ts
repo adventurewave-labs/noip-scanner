@@ -58,7 +58,7 @@ describe('HTML report', () => {
 describe('HTML report with sparse data', () => {
   it('handles missing context/platform/line, empty excludes, controls without findings and network detail', () => {
     const r = buildReport(snap({ context: undefined, serverVersion: { gitVersion: 'v1.30.0' } }), 'live', { now: NOW, includeSystemNamespaces: true });
-    r.findings.push({ ...demo().findings[0]!, controls: [], resource: { kind: 'Pod', name: 'p', source: { file: 'a.yaml' } } });
+    r.findings.push({ ...demo().findings[0]!, controls: [], references: undefined, resource: { kind: 'Pod', name: 'p', source: { file: 'a.yaml' } } });
     r.network = ingestNetinspect(JSON.stringify({ checks: [{ name: 'dns', status: 'pass' }] }));
     r.explanation = { summary: 's', priorities: [], caveats: [] };
     const h = renderHtml(r);

@@ -1,5 +1,6 @@
 import type { Log, ReportingDescriptor, Result } from 'sarif';
 import { ALL_CHECKS, type Check } from '../checks/index.js';
+import { REFERENCES } from '../checks/references.js';
 import { resourceKey } from '../scan.js';
 import type { Finding, Report, Severity } from '../types.js';
 
@@ -20,7 +21,12 @@ function rule(c: Check): ReportingDescriptor {
       markdown: `**Remediation:** ${c.remediation}${c.controls.length ? `\n\n**Controls** (reference mapping, not an attestation): ${c.controls.join(', ')}` : ''}`,
     },
     defaultConfiguration: { level: LEVEL[c.severity] },
-    properties: { tags: ['security', 'kubernetes', c.category.toLowerCase().replace(/\s+/g, '-'), ...c.controls], 'security-severity': SECURITY_SEVERITY[c.severity], precision: 'very-high' },
+    properties: {
+      tags: ['security', 'kubernetes', c.category.toLowerCase().replace(/\s+/g, '-'), ...c.controls, ...(REFERENCES[c.id]?.nist800190.map((x) => `NIST-800-190 ${x.split(' ')[0]}`) ?? [])],
+      'security-severity': SECURITY_SEVERITY[c.severity],
+      precision: 'very-high',
+      ...(REFERENCES[c.id] ? { references: REFERENCES[c.id] } : {}),
+    },
   };
 }
 

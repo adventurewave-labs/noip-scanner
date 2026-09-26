@@ -47,7 +47,7 @@ export function renderHtml(r: Report): string {
           (f) =>
             `<tr id="${esc(f.id)}"><td><span class="sev ${f.severity}">${f.severity}</span></td><td><b>${esc(f.checkId)}</b><br>${esc(f.title)}</td>` +
             `<td><code>${esc(resourceKey(f.resource))}</code>${f.resource.source ? `<br><span class="muted">${esc(f.resource.source.file)}${f.resource.source.line ? `:${f.resource.source.line}` : ''}</span>` : ''}</td>` +
-            `<td><code>${esc(f.evidence)}</code></td><td>${esc(f.remediation)}</td><td>${esc(f.controls.join(', ') || '—')}</td></tr>`,
+            `<td><code>${esc(f.evidence)}</code></td><td>${esc(f.remediation)}</td><td>${esc(f.controls.join(', ') || '—')}${f.references ? `<br><span class="muted">NSA/CISA: ${esc(f.references.nsaCisa.join('; ') || '—')}<br>NIST 800-190: ${esc(f.references.nist800190.join('; ') || '—')}</span>` : ''}</td></tr>`,
         )
         .join('')}</tbody></table></div>`
     : '<p>No findings.</p>';

@@ -24,4 +24,4 @@ export const CONTROLS: Record<string, ControlDef> = {
 };
 
 export const MAPPING_DISCLAIMER =
-  'SOC 2 and HIPAA identifiers are reference mappings, not an attestation. NOIP checks a workload subset of CIS Kubernetes Benchmark Level 1 and does not assess control-plane, node or process controls.';
+  'SOC 2, HIPAA, NSA/CISA and NIST SP 800-190 identifiers are reference mappings, not an attestation. NOIP checks a workload subset of CIS Kubernetes Benchmark Level 1 and does not assess control-plane, node or process controls.';
