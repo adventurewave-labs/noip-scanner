@@ -84,6 +84,8 @@ jobs:
             [ "$n" -ge 2 ] && break; sleep 2
           done
           kubectl get pods -A -o wide
+          # noip-test-clean enforces PSA "restricted": the Deployment's pods only exist if they were admitted.
+          test "$(kubectl -n noip-test-clean get pods -l app=web --no-headers | wc -l)" -ge 2
       - name: mint a read-only kubeconfig for the noip ServiceAccount (no secrets access)
         run: |
           scripts/sa-kubeconfig.sh noip.kubeconfig 1h
