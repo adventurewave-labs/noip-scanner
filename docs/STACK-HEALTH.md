@@ -30,3 +30,38 @@ The base branch measured **85.76%** branch coverage, the same figure its last re
 No PR lowers a coverage threshold compared with its base, so the ratchet holds.
 
 **Not yet verified for #9–#20:** the kind live-scan job, the Docker smoke job, and `npm audit signatures`. All three need GitHub Actions or a Docker host. `npm run ci:local` runs every other gate on any machine.
+
+## Loop 3 (rounds 20–40, PRs #21–#41): 2026-09-26
+
+Every branch head was checked again the same way: a fresh git worktree with no `dist/`, then typecheck, lint, doc-lint, unit tests with the coverage gate, then build. All 21 pass.
+
+| Branch (PR) | Commit | Gates | Statements | Branches | Functions | Lines |
+|---|---|---|---|---|---|---|
+| r20-ci-local (#21) | `3c8d4d3` | ✅ | 99.28% | 93.59% | 100% | 99.61% |
+| r21-exec-summary (#22) | `a52a2b4` | ✅ | 99.3% | 93.77% | 100% | 99.63% |
+| r22-i18n-es (#23) | `320718c` | ✅ | 99.33% | 94.13% | 100% | 99.65% |
+| r23-version-support (#24) | `1e29a20` | ✅ | 99.36% | 94.25% | 100% | 99.66% |
+| r24-history (#25) | `e3dadf1` | ✅ | 99.43% | 94.4% | 100% | 99.7% |
+| r25-policy (#26) | `904ca53` | ✅ | 99.45% | 94.75% | 100% | 99.71% |
+| r26-distribution (#27) | `1504153` | ✅ | 99.45% | 94.75% | 100% | 99.71% |
+| r27-review3 (#28) | `a04db7c` | ✅ | 99.46% | 94.66% | 100% | 99.71% |
+| r28-psa-readiness (#29) | `ce89ecc` | ✅ | 99.47% | 95.23% | 100% | 99.74% |
+| r29-oscal (#30) | `6592c33` | ✅ | 99.48% | 94.86% | 100% | 99.75% |
+| r30-dsse (#31) | `651e58e` | ✅ | 99.49% | 95% | 100% | 99.75% |
+| r31-metrics (#32) | `62f9c2b` | ✅ | 99.5% | 94.79% | 100% | 99.76% |
+| r32-review4 (#33) | `5bbfaf7` | ✅ | 99.51% | 94.89% | 100% | 99.76% |
+| r33-risk-chains (#34) | `ffb3476` | ✅ | 99.53% | 95.29% | 100% | 99.77% |
+| r34-perf (#35) | `9dc39f4` | ✅ | 99.53% | 95.38% | 100% | 99.77% |
+| r35-mcp-tools (#36) | `b9b5a88` | ✅ | 99.54% | 95.32% | 100% | 99.78% |
+| r36-serviceaccounts (#37) | `d93293e` | ✅ | 99.54% | 95.29% | 100% | 99.78% |
+| r37-review5 (#38) | `b700e13` | ✅ | 99.49% | 95.35% | 100% | 99.71% |
+| r38-kbom (#39) | `deb28b1` | ✅ | 99.45% | 95.15% | 100% | 99.72% |
+| r39-diff-context (#40) | `466b3fc` | ✅ | 99.46% | 95.14% | 100% | 99.72% |
+| r40-llm-context (#41) | `2d47233` | ✅ | 99.46% | 95.1% | 100% | 99.72% |
+
+After round 40 the tip has 329 tests. Round 41 raises the ratchet to statements 99, branches 94.5, functions 100 and lines 99. Every branch from round 28 onwards is above those figures.
+
+**Still not verified for #9–#42:** the kind live-scan job (which now also applies the admission policies and needs the new `serviceaccounts` permission), the Docker smoke job, the `action-smoke` job and `npm audit signatures`. These need GitHub Actions or a Docker host. Some checks were done by hand instead:
+- the pre-commit hook, end to end with pre-commit 4.6.2;
+- the DSSE signatures, against cosign v2.6.5;
+- the OSCAL and CycloneDX output, against their official schemas.
