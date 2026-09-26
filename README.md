@@ -96,7 +96,7 @@ Some findings compound. Reports include a `riskChains` section for two paths NOI
 - **A running workload carries a cluster-admin token.** A ServiceAccount, directly or through `system:serviceaccounts[:<ns>]` or `system:authenticated`, is bound to `cluster-admin`, and workloads run as it with the token mounted. The severity is critical, and the chain notes when one of those workloads also has host-level access (POD-001, POD-002 or POD-004).
 - **A namespace's default ServiceAccount has a Role.** Every workload that doesn't name its own ServiceAccount, including future ones, inherits that Role. The severity is medium.
 
-Each chain lists its entry points and the findings it is built from. Chains don't change the score. They appear in the markdown and HTML reports and as `noip_risk_chains{severity}` in `/api/metrics`. The chain descriptions are English in Spanish reports too, like evidence. **Limit:** NOIP doesn't read ServiceAccount objects, so an SA-level `automountServiceAccountToken: false` isn't visible; only the pod-level setting is honoured, and each chain says so.
+Each chain lists its entry points and the findings it is built from. Chains don't change the score. They appear in the markdown and HTML reports and as `noip_risk_chains{severity}` in `/api/metrics`. The chain descriptions are English in Spanish reports too, like evidence. Token mounting follows Kubernetes: the pod's `automountServiceAccountToken` if set, otherwise the ServiceAccount's, otherwise true. Live scans list ServiceAccounts (keeping only name, namespace and that flag). When a ServiceAccount isn't in the input, as in a manifest scan that doesn't include it, the chain says the SA-level setting couldn't be checked.
 
 ## Pod Security readiness
 

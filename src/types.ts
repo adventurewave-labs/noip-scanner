@@ -1,10 +1,4 @@
-import type {
-  V1ClusterRoleBinding,
-  V1Namespace,
-  V1NetworkPolicy,
-  V1Pod,
-  V1RoleBinding,
-} from '@kubernetes/client-node';
+import type { V1ClusterRoleBinding, V1Namespace, V1NetworkPolicy, V1Pod, V1RoleBinding, V1ServiceAccount } from '@kubernetes/client-node';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 export const SEVERITIES: readonly Severity[] = ['critical', 'high', 'medium', 'low'];
@@ -22,6 +16,11 @@ export interface ClusterSnapshot {
   networkPolicies: V1NetworkPolicy[];
   clusterRoleBindings: V1ClusterRoleBinding[];
   roleBindings: V1RoleBinding[];
+  /**
+   * ServiceAccounts (metadata + automountServiceAccountToken only are used; SAs carry no secret values).
+   * Absent when the source didn't provide them (older snapshots); risk chains then state that caveat.
+   */
+  serviceAccounts?: V1ServiceAccount[];
   /** Manifest scans only: `Kind/namespace/name` (or `Kind/name`) -> where it was declared. */
   sources?: Record<string, { file: string; line?: number }>;
 }

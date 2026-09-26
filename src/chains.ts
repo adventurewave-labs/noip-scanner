@@ -7,8 +7,8 @@ import type { ClusterSnapshot, Finding, Severity } from './types.js';
  * Risk chains: findings that compound. A single finding says "this is weak"; a chain says "these together
  * give an attacker X". Deterministic and derived only from the snapshot NOIP already reads; not scored.
  *
- * Limits (stated in every chain's caveat): NOIP doesn't read ServiceAccount objects, so an SA-level
- * `automountServiceAccountToken: false` is invisible here; only the pod-level setting is honoured.
+ * Token mounting follows Kubernetes: the pod's automountServiceAccountToken, else the ServiceAccount's, else true.
+ * When the ServiceAccount object isn't in the input (e.g. a manifest scan without it), the chain says so.
  */
 export interface RiskChain {
   id: string;
@@ -23,11 +23,11 @@ export interface RiskChain {
   caveat: string;
 }
 
-const CAVEAT = 'Assumes the ServiceAccount itself does not set automountServiceAccountToken: false (NOIP does not read ServiceAccount objects).';
+const CAVEAT_UNKNOWN_SA = 'The ServiceAccount object was not in the scanned input, so an SA-level automountServiceAccountToken: false could not be checked.';
+const CAVEAT_NONE = 'Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).';
 const HOST_ACCESS = new Set(['NOIP-POD-001', 'NOIP-POD-002', 'NOIP-POD-004']);
 
 const saOf = (p: V1Pod) => `${p.metadata?.namespace ?? 'default'}/${p.spec?.serviceAccountName || 'default'}`;
-const tokenMounted = (p: V1Pod) => p.spec?.automountServiceAccountToken !== false;
 
 /** Does an RBAC subject cover the ServiceAccount `ns/name`? Includes the service-account groups. */
 function covers(s: V1Subject, sa: string, bindingNs?: string): boolean {
@@ -38,6 +38,10 @@ function covers(s: V1Subject, sa: string, bindingNs?: string): boolean {
 }
 
 export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], excluded: ReadonlySet<string>): RiskChain[] {
+  const saAutomount = new Map((snapshot.serviceAccounts ?? []).map((a) => [`${a.metadata?.namespace ?? 'default'}/${a.metadata?.name}`, a.automountServiceAccountToken]));
+  // Kubernetes: the pod's automountServiceAccountToken wins; otherwise the ServiceAccount's; otherwise true.
+  const tokenMounted = (p: V1Pod) => (p.spec?.automountServiceAccountToken ?? saAutomount.get(saOf(p)) ?? true) !== false;
+  const caveat = (sa: string) => (saAutomount.has(sa) ? CAVEAT_NONE : CAVEAT_UNKNOWN_SA);
   const pods = snapshot.pods.filter((p) => !excluded.has(p.metadata?.namespace ?? 'default') && tokenMounted(p));
   // One entry per workload (replicas collapse), keyed by the ServiceAccount whose token it carries.
   const bySa = new Map<string, Map<string, V1Pod>>();
@@ -84,7 +88,7 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
         ],
         entryPoints: entries,
         findingIds: [...new Set([...rbacFinding('ClusterRoleBinding', binding), ...hostAccess.map((f) => f.id)])].sort(),
-        caveat: CAVEAT,
+        caveat: caveat(sa),
       });
     }
   }
@@ -107,7 +111,7 @@ export function riskChains(snapshot: ClusterSnapshot, findings: Finding[], exclu
       ],
       entryPoints: entries,
       findingIds: rbacFinding('RoleBinding', binding, ns),
-      caveat: CAVEAT,
+      caveat: caveat(sa),
     });
   }
   const rank: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };

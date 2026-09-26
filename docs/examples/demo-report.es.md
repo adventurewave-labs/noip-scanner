@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Origen | `demo` |
-| Fecha del análisis | 2026-09-26T21:28:15.960Z |
+| Fecha del análisis | 2026-09-26T21:39:53.564Z |
 | Clúster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 nodo(s) |
-| Escáner | noip 0.1.0 @ `5bbfaf7deaf7` |
+| Escáner | noip 0.1.0 @ `b9b5a88f344f` |
 | Revisiones ejecutadas | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Namespaces excluidos | kube-node-lease, kube-public, kube-system |
 
@@ -287,7 +287,7 @@ _Hallazgos que se combinan: juntos dan a un atacante más que cada uno por separ
 
 Hallazgos: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin`
 
-> Assumes the ServiceAccount itself does not set automountServiceAccountToken: false (NOIP does not read ServiceAccount objects).
+> Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).
 
 ### medio: Every workload in payments without its own ServiceAccount inherits Role config-reader
 
@@ -296,7 +296,7 @@ Hallazgos: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBi
 
 Hallazgos: `NOIP-RBAC-003:RoleBinding/payments/payments-reader`
 
-> Assumes the ServiceAccount itself does not set automountServiceAccountToken: false (NOIP does not read ServiceAccount objects).
+> Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).
 
 ## Preparación para Pod Security
 

@@ -99,3 +99,27 @@ describe('edge cases (chains, metrics, OSCAL)', () => {
     expect(doc).toContain('"kubernetes-kind"');
   });
 });
+
+describe('ServiceAccount-level token mounting', () => {
+  const s = (sas: object[] | undefined, pod: (p: V1Pod) => void = () => {}) =>
+    snap({ pods: [hardenedPod('app', 'p', pod)], clusterRoleBindings: [crb('x', [{ kind: 'ServiceAccount', name: 'default', namespace: 'app' }])], ...(sas ? { serviceAccounts: sas as never } : {}) });
+  it('drops the chain when the ServiceAccount disables automount, unless the pod re-enables it', () => {
+    const off = [{ metadata: { name: 'default', namespace: 'app' }, automountServiceAccountToken: false }];
+    expect(riskChains(s(off), [], new Set())).toEqual([]);
+    const podOn = riskChains(s(off, (p) => (p.spec!.automountServiceAccountToken = true)), [], new Set());
+    expect(podOn).toHaveLength(1);
+    expect(podOn[0]!.caveat).toMatch(/checked at pod and ServiceAccount level/);
+  });
+  it('states the caveat when the ServiceAccount object is not in the input', () => {
+    expect(riskChains(s(undefined), [], new Set())[0]!.caveat).toMatch(/was not in the scanned input/);
+    expect(riskChains(s([{ metadata: { name: 'other', namespace: 'app' } }]), [], new Set())[0]!.caveat).toMatch(/was not in the scanned input/);
+  });
+  it('reads ServiceAccounts from manifests', async () => {
+    const { loadManifests } = await import('../src/manifests.js');
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const dir = mkdtempSync(`${(await import('node:os')).tmpdir()}/noip-sa-`);
+    writeFileSync(`${dir}/sa.yaml`, 'apiVersion: v1\nkind: ServiceAccount\nmetadata: {name: builder, namespace: app}\nautomountServiceAccountToken: false\nsecrets: [{name: tok}]\n');
+    const snapshot = await loadManifests([dir]);
+    expect(snapshot.serviceAccounts).toEqual([{ metadata: { name: 'builder', namespace: 'app' }, automountServiceAccountToken: false }]);
+  });
+});

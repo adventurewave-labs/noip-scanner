@@ -539,5 +539,38 @@
         }
       ]
     }
+  ],
+  "serviceAccounts": [
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "ci"
+      }
+    },
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "payments"
+      }
+    },
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "shop"
+      },
+      "automountServiceAccountToken": false
+    },
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "monitoring"
+      }
+    },
+    {
+      "metadata": {
+        "name": "node-exporter",
+        "namespace": "monitoring"
+      }
+    }
   ]
 }

@@ -9,6 +9,7 @@ import type {
   V1Pod,
   V1PodTemplateSpec,
   V1RoleBinding,
+  V1ServiceAccount,
 } from '@kubernetes/client-node';
 import { isMap, isSeq, LineCounter, parseAllDocuments, type Node as YamlNode } from 'yaml';
 import type { ClusterSnapshot } from './types.js';
@@ -138,6 +139,10 @@ export async function loadManifests(paths: string[], readStdin: () => Promise<st
       else if (kind === 'NetworkPolicy') snap.networkPolicies.push({ ...(obj as V1NetworkPolicy), metadata: { ...meta, namespace: ns } });
       else if (kind === 'ClusterRoleBinding') snap.clusterRoleBindings.push(obj as V1ClusterRoleBinding);
       else if (kind === 'RoleBinding') snap.roleBindings.push({ ...(obj as V1RoleBinding), metadata: { ...meta, namespace: ns } });
+      else if (kind === 'ServiceAccount') {
+        const sa = obj as V1ServiceAccount;
+        (snap.serviceAccounts ??= []).push({ metadata: { name: meta.name, namespace: ns }, automountServiceAccountToken: sa.automountServiceAccountToken });
+      }
       else if (WORKLOADS[kind]) {
         const tpl = WORKLOADS[kind](obj.spec ?? {});
         if (tpl?.spec) snap.pods.push(podFromTemplate(kind, { ...meta, namespace: ns }, tpl));

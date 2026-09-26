@@ -63,7 +63,15 @@ describe('fetchSnapshot', () => {
   const ok = () =>
     new Map<unknown, object>([
       [VersionApi, { getCode: async () => ({ gitVersion: 'v1.31.2', platform: 'linux/arm64' }) }],
-      [CoreV1Api, { listNode: list([{}, {}]), listNamespace: list([{ metadata: { name: 'a' } }]), listPodForAllNamespaces: list([]) }],
+      [
+        CoreV1Api,
+        {
+          listNode: list([{}, {}]),
+          listNamespace: list([{ metadata: { name: 'a' } }]),
+          listPodForAllNamespaces: list([]),
+          listServiceAccountForAllNamespaces: list([{ metadata: { name: 'default', namespace: 'a', uid: 'u' }, automountServiceAccountToken: false, secrets: [{ name: 'default-token-x' }], imagePullSecrets: [{ name: 'regcred' }] }]),
+        },
+      ],
       [NetworkingV1Api, { listNetworkPolicyForAllNamespaces: list([]) }],
       [RbacAuthorizationV1Api, { listClusterRoleBinding: list([]), listRoleBindingForAllNamespaces: list([]) }],
     ]);
@@ -72,6 +80,8 @@ describe('fetchSnapshot', () => {
     const s = await fetchSnapshot(fakeKc(ok()));
     expect(s).toMatchObject({ serverVersion: { gitVersion: 'v1.31.2', platform: 'linux/arm64' }, context: 'ctx-a', nodeCount: 2 });
     expect(s.namespaces).toHaveLength(1);
+    // only name, namespace and the automount flag are kept: no token or pull-secret references
+    expect(s.serviceAccounts).toEqual([{ metadata: { name: 'default', namespace: 'a' }, automountServiceAccountToken: false }]);
     expect(await probeVersion(fakeKc(ok()))).toBe('v1.31.2');
   });
 

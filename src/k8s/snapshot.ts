@@ -80,7 +80,7 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
   const rbac = kc.makeApiClient(RbacAuthorizationV1Api);
   const version = kc.makeApiClient(VersionApi);
 
-  const [v, nodes, namespaces, pods, netpols, crbs, rbs] = await Promise.all([
+  const [v, nodes, namespaces, pods, netpols, crbs, rbs, sas] = await Promise.all([
     call('GET /version', version.getCode(), timeoutMs),
     listAll('list nodes', (p) => core.listNode(p), timeoutMs),
     listAll('list namespaces', (p) => core.listNamespace(p), timeoutMs),
@@ -88,6 +88,7 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
     listAll('list networkpolicies', (p) => net.listNetworkPolicyForAllNamespaces(p), timeoutMs),
     listAll('list clusterrolebindings', (p) => rbac.listClusterRoleBinding(p), timeoutMs),
     listAll('list rolebindings', (p) => rbac.listRoleBindingForAllNamespaces(p), timeoutMs),
+    listAll('list serviceaccounts', (p) => core.listServiceAccountForAllNamespaces(p), timeoutMs),
   ]);
 
   return {
@@ -99,6 +100,8 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
     networkPolicies: netpols,
     clusterRoleBindings: crbs,
     roleBindings: rbs,
+    // Keep only what risk chains use: never token references or image pull secret names.
+    serviceAccounts: sas.map((s) => ({ metadata: { name: s.metadata?.name, namespace: s.metadata?.namespace }, automountServiceAccountToken: s.automountServiceAccountToken })),
   };
 }
 
