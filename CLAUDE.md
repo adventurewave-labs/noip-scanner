@@ -12,13 +12,17 @@ src/k8s/client.ts        single KubeConfig factory
 src/k8s/snapshot.ts      fetch every list once → ClusterSnapshot; any failure → K8sUnavailable
 src/checks/              pure checks (snapshot → findings); registry in index.ts; CIS catalog in controls.ts
 src/scan.ts              buildReport (pure), getSnapshot (live | explicit demo), scan
-src/report/              markdown renderer, provenance, netinspect ingest
+src/report/              renderers (markdown, html, sarif), bundle (evidence + verify), diff, import-sarif, netinspect, provenance
 src/llm/                 provider seam, anthropic + openai-compatible adapters, redact, zod schema, explain
 src/api/                 app.ts (routes, bearer auth), server.ts (entry)
-src/cli.ts               `noip scan`, `noip mcp`
+src/cli.ts               `noip scan | diff | fix | verify-bundle | mcp`
 src/manifests.ts         offline YAML → ClusterSnapshot (shift-left)
+src/remediation.ts       deterministic RFC 6902 fixes per finding; src/fix.ts applies them to YAML
 src/suppressions.ts      accepted-risk entries (reason/owner/expiry)
+src/fleet.ts             multi-context scans (one report per cluster + fleet summary)
 src/mcp.ts               MCP server: scan, list_checks, explain_finding (read-only)
+src/api/openapi.ts       OpenAPI 3.1 document (/openapi.json); contract-tested
+src/checks/references.ts NSA/CISA + NIST SP 800-190 reference mappings
 fixtures/demo-cluster.json          demo-mode data (fictional)
 test/fixtures/misconfig/*.yaml      seeded kind fixtures
 test/golden/kind-findings.json      expected finding IDs for those fixtures
@@ -33,7 +37,9 @@ deploy/rbac.yaml                    read-only ClusterRole (golden-tested: no sec
 4. **The LLM explains; it never decides.** Everything sent to it goes through `llmPayload()`/`redact()`. Its output is zod-validated, and on failure the explanation is `null`.
 5. **Honest docs.** `npm run doc-lint` bans overselling phrases and the non-existent versioned API prefix outside `docs/archive/`. The API lives under `/api`.
 6. **Coverage only ratchets up.** You may raise `coverage-thresholds.json`, never lower it. CI compares it against the base branch.
-7. **CI is `.github/workflows/ci.yml` only.** Never add a `schedule:`, a deploy job, or an image push.
+7. **CI is `.github/workflows/ci.yml` only.** Never add a `schedule:`, a deploy job, or an image push. Actions are pinned to commit SHAs; keep them pinned.
+8. **Untrusted text is escaped at the renderer.** Markdown uses `mdSafe()`/`code()`, HTML uses `esc()`. Anything from manifests, imported SARIF or an LLM is untrusted.
+9. **Property tests guard invariants.** If `test/properties.test.ts` finds a counterexample, fix the code, not the property. fast-check prints the seed so the failure can be reproduced.
 
 ## Commands
 

@@ -77,7 +77,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 16 | OpenAPI 3.1 spec (`/openapi.json`), plus contract tests that check every route's responses against it | shipped (`loop/r16-openapi`) |
 | 17 | NSA/CISA Hardening Guide and NIST SP 800-190 reference mappings for every check, in all output formats and in MCP | shipped (`loop/r17-mappings`) |
 | 18 | Second independent review: 5 defects plus 2 minor issues found and fixed, each with a regression test (`test/review2-fixes.test.ts`). The fixes cover `noip fix` securityContext merging and findings it couldn't locate, markdown injection from imported SARIF, fleet file-name collisions, `verify-bundle` following symlinks and accepting non-subject files, the NS-001 labels parent, and an `--out-dir` inside the input. The scale test also exposed per-finding glob recompilation, now cached. | shipped (`loop/r18-review2-fixes`) |
-| 19 | Wrap-up | planned |
+| 19 | Wrap-up: CLAUDE.md, REQUIREMENTS.md and README brought up to date | shipped (`loop/r19-wrapup`) |
 
 ## Later
 These are candidates, not commitments:

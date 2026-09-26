@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T16:59:53.038Z |
+| Scanned at | 2026-09-26T17:08:59.778Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `a9224e8cfb9b` |
+| Scanner | noip 0.1.0 @ `90e5b0339da1` |
 | Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
@@ -200,7 +200,7 @@ Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/
 ### [MEDIUM] NOIP-POD-009 — Secret exposed as environment variable
 
 - Resource: `Deployment/payments/api/api`
-- Evidence: spec.containers[api]: env[STRIPE_KEY] <- secret stripe/api-key
+- Evidence: spec.containers[api]: env[STRIPE_KEY] &lt;- secret stripe/api-key
 - Remediation: Mount the secret as a read-only volume instead of env.valueFrom.secretKeyRef / envFrom.secretRef.
 - Controls: CIS-5.4.1
 - References: NSA/CISA Secrets · NIST SP 800-190 —
@@ -209,7 +209,7 @@ Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/
 ### [MEDIUM] NOIP-POD-009 — Secret exposed as environment variable
 
 - Resource: `Deployment/payments/api/migrate`
-- Evidence: spec.initContainers[migrate]: envFrom <- secret payments-db
+- Evidence: spec.initContainers[migrate]: envFrom &lt;- secret payments-db
 - Remediation: Mount the secret as a read-only volume instead of env.valueFrom.secretKeyRef / envFrom.secretRef.
 - Controls: CIS-5.4.1
 - References: NSA/CISA Secrets · NIST SP 800-190 —

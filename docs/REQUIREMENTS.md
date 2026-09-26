@@ -17,3 +17,26 @@ This table maps each PRD requirement to where it lives in the code and what veri
 | **R-11** Python scripts | Not ported (ADR-0001). The old repo keeps them. | n/a |
 | **R-12** Ingest netinspect | `src/report/netinspect.ts`, `schemas/netinspect-input.schema.json` | `test/report.test.ts`, `test/cli.test.ts`. Note that k8s-netinspect has no JSON output yet; this schema is the contract. |
 | **R-13** Railway preview | `railway.json`, demo banner at `GET /`, `X-NOIP-Mode: demo` header | `test/api.test.ts`; the demo step in docker-smoke. Connecting the Railway service to the repo is a manual step. |
+
+## Beyond the PRD: improvement loops
+
+These features go past the PRD's requirements. `docs/ROADMAP.md` gives the reasoning behind each one.
+
+| Feature | Where | Verified by |
+|---|---|---|
+| SARIF 2.1.0 | `src/report/sarif.ts` | Tests against the official OASIS schema (`test/sarif.test.ts`) |
+| Offline manifest scanning | `src/manifests.ts` | Offline scan matches the same golden file as kind; fuzzing (`test/properties.test.ts`) |
+| Suppressions with expiry | `src/suppressions.ts` | `test/suppressions.test.ts`; partition property |
+| MCP server | `src/mcp.ts` | In-memory transport tests; stdio smoke test in CI |
+| Posture drift | `src/report/diff.ts` | `test/diff.test.ts`; "diffing a report with itself gives nothing" property |
+| PSA check (15/15) | `src/checks/namespace.ts` | kind: the restricted namespace actually admits the hardened pods |
+| Supply chain | `scripts/supply-chain.mjs`, CI `supply-chain` job | npm audit (vulnerabilities and signatures); SBOM artifact; license allowlist |
+| HTML report | `src/report/html.ts` | HTML injection tests; rendered checks for mobile and dark mode |
+| Evidence bundle | `src/report/bundle.ts` | Tamper, symlink and extra-file tests; `sha256sum -c` compatible |
+| Fixes | `src/remediation.ts`, `src/fix.ts` | Re-scan after fixing leaves only findings that need judgement; fixing twice changes nothing |
+| SARIF import | `src/report/import-sarif.ts` | Score unchanged; SARIF output still valid; markdown injection tests |
+| Fleet scans | `src/fleet.ts` | Unreachable clusters are recorded and the scan continues; file-name collision tests |
+| Scale | `listAll()` in `src/k8s/snapshot.ts` | Pagination and 410-restart tests; 10k-pod time budget (`test/scale.test.ts`) |
+| OpenAPI 3.1 | `src/api/openapi.ts` | Document validates; every route is documented; responses conform |
+| NSA/CISA and NIST 800-190 references | `src/checks/references.ts` | Completeness test covering every check |
+| Two independent reviews | `test/review-fixes.test.ts`, `test/review2-fixes.test.ts` | A regression test for each defect found |
