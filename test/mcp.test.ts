@@ -22,7 +22,7 @@ describe('noip mcp', () => {
 
   it('list_checks returns the catalog', async () => {
     const r = await call(await connect(), 'list_checks');
-    expect((r.structuredContent!.checks as unknown[]).length).toBe(14);
+    expect((r.structuredContent!.checks as unknown[]).length).toBe(15);
   });
 
   it('scan works for demo and manifests, and filters by minSeverity', async () => {
@@ -35,7 +35,7 @@ describe('noip mcp', () => {
     expect(f.every((x) => x.severity === 'critical')).toBe(true);
     const m = await call(c, 'scan', { manifests: ['test/fixtures/misconfig'] });
     expect(m.structuredContent!.source).toBe('manifests');
-    expect(JSON.parse(m.content[0]!.text).findings).toHaveLength(6);
+    expect(JSON.parse(m.content[0]!.text).findings).toHaveLength(7);
   });
 
   it('returns a tool error, not a crash, when the cluster is unreachable or flags conflict', async () => {

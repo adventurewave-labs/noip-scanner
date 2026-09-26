@@ -177,3 +177,21 @@ describe('defensive fallbacks for sparse objects', () => {
     expect(r.findings.find((f) => f.checkId === 'NOIP-RBAC-002')!.evidence).toContain('ServiceAccount/?/default');
   });
 });
+
+describe('NOIP-NS-001 Pod Security Admission', () => {
+  const nsWith = (name: string, level?: string) => ({ metadata: { name, labels: level ? { 'pod-security.kubernetes.io/enforce': level } : undefined } });
+  const np = (n: string) => ({ metadata: { name: 'np', namespace: n }, spec: { podSelector: {} } });
+  it('passes baseline/restricted, flags unset or privileged, skips system namespaces', () => {
+    const r = buildReport(
+      snap({
+        namespaces: [nsWith('a', 'restricted'), nsWith('b', 'baseline'), nsWith('c', 'privileged'), nsWith('d'), nsWith('kube-system')],
+        networkPolicies: ['a', 'b', 'c', 'd'].map(np),
+      }),
+      'live',
+    );
+    expect(r.findings.map((f) => [f.id, f.evidence])).toEqual([
+      ['NOIP-NS-001:Namespace/c', 'metadata.labels["pod-security.kubernetes.io/enforce"]=privileged'],
+      ['NOIP-NS-001:Namespace/d', 'metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)'],
+    ]);
+  });
+});

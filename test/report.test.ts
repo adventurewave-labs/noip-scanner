@@ -39,13 +39,13 @@ describe('report schema (R-10)', () => {
     expect(r.provenance.scanner).toEqual({ name: 'noip', version: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, gitSha: 'test-sha' });
     expect(r.provenance.cluster.serverVersion).toBe('v1.31.4');
     expect(r.provenance.scannedAt).toBe('2026-01-01T00:00:00.000Z');
-    expect(r.provenance.checksRun).toHaveLength(14);
+    expect(r.provenance.checksRun).toHaveLength(15);
     expect(r.mappingDisclaimer).toMatch(/reference mappings, not an attestation/);
   });
 
   it('scores 100 for a clean snapshot and counts each failed check once', () => {
     expect(buildReport(snap(), 'live').summary.score).toBe(100);
-    expect(demo().summary.score).toBe(13);
+    expect(demo().summary.score).toBe(12);
   });
 });
 

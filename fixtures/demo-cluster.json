@@ -29,7 +29,10 @@
     },
     {
       "metadata": {
-        "name": "shop"
+        "name": "shop",
+        "labels": {
+          "pod-security.kubernetes.io/enforce": "restricted"
+        }
       }
     },
     {
@@ -39,7 +42,10 @@
     },
     {
       "metadata": {
-        "name": "monitoring"
+        "name": "monitoring",
+        "labels": {
+          "pod-security.kubernetes.io/enforce": "privileged"
+        }
       }
     },
     {

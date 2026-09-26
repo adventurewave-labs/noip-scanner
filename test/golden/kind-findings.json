@@ -1,15 +1,27 @@
 {
   "description": "Exact set of findings expected for the seeded resources (test/fixtures/misconfig). Compared by scripts/golden-compare.mjs against the live kind scan and by test/golden.test.ts offline.",
-  "scope": { "namespacePrefix": "noip-test-", "clusterScopedNamePrefix": "noip-test-" },
+  "scope": {
+    "namespacePrefix": "noip-test-",
+    "clusterScopedNamePrefix": "noip-test-"
+  },
   "cleanNamespace": "noip-test-clean",
   "expectedFindingIds": [
     "NOIP-NET-001:Namespace/noip-test-bad",
+    "NOIP-NS-001:Namespace/noip-test-bad",
     "NOIP-POD-001:Pod/noip-test-bad/privileged/app",
     "NOIP-POD-002:Pod/noip-test-bad/hostpid",
     "NOIP-POD-005:Pod/noip-test-bad/privileged/app",
     "NOIP-POD-009:Pod/noip-test-bad/secret-env/app",
     "NOIP-RBAC-002:ClusterRoleBinding/noip-test-default-sa-admin"
   ],
-  "expectedFailedControls": ["CIS-5.1.1", "CIS-5.1.5", "CIS-5.2.1", "CIS-5.2.2", "CIS-5.2.5", "CIS-5.3.2", "CIS-5.4.1"],
+  "expectedFailedControls": [
+    "CIS-5.1.1",
+    "CIS-5.1.5",
+    "CIS-5.2.1",
+    "CIS-5.2.2",
+    "CIS-5.2.5",
+    "CIS-5.3.2",
+    "CIS-5.4.1"
+  ],
   "seededSecretValue": "noip-seeded-secret-value-7f3a"
 }

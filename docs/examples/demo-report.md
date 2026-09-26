@@ -5,15 +5,15 @@
 | | |
 |---|---|
 | Source | `demo` |
-| Scanned at | 2026-09-26T05:26:58.098Z |
+| Scanned at | 2026-09-26T14:37:58.552Z |
 | Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
-| Scanner | noip 0.1.0 @ `unknown` |
-| Checks run | 14 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
+| Scanner | noip 0.1.0 @ `b98eeb0da767` |
+| Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
 | Excluded namespaces | kube-node-lease, kube-public, kube-system |
 
 ## Summary
 
-Score **13/100** · 21 finding(s) · 2 critical, 9 high, 8 medium, 2 low · 13/14 checks failed · 10/10 controls failed
+Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/15 checks failed · 10/10 controls failed
 
 ## Findings
 
@@ -112,6 +112,38 @@ Score **13/100** · 21 finding(s) · 2 critical, 9 high, 8 medium, 2 low · 13/1
 - Remediation: Give every egress rule an explicit `to` (namespaceSelector/podSelector/ipBlock) and ports.
 - Controls: —
 - Finding ID: `NOIP-NET-002:NetworkPolicy/shop/allow-egress`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/ci`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- Finding ID: `NOIP-NS-001:Namespace/ci`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/default`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- Finding ID: `NOIP-NS-001:Namespace/default`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/monitoring`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"]=privileged
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- Finding ID: `NOIP-NS-001:Namespace/monitoring`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/payments`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- Finding ID: `NOIP-NS-001:Namespace/payments`
 
 ### [MEDIUM] NOIP-POD-005 — Privilege escalation not disabled
 

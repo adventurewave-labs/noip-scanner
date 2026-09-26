@@ -11,15 +11,15 @@ Scan results (redacted):
   "source": "live",
   "kubernetesVersion": "v1.31.0",
   "summary": {
-    "score": 50,
-    "findings": 6,
+    "score": 48,
+    "findings": 7,
     "bySeverity": {
       "critical": 2,
       "high": 2,
-      "medium": 2,
+      "medium": 3,
       "low": 0
     },
-    "checksFailed": 6,
+    "checksFailed": 7,
     "controlsFailed": 7,
     "suppressed": 0
   },
@@ -64,6 +64,14 @@ Scan results (redacted):
         "CIS-5.1.1",
         "CIS-5.1.5"
       ]
+    },
+    {
+      "findingId": "NOIP-NS-001:Namespace/noip-test-bad",
+      "checkId": "NOIP-NS-001",
+      "severity": "medium",
+      "title": "Pod Security Admission not enforcing baseline or restricted",
+      "evidence": "metadata.labels[\\"pod-security.kubernetes.io/enforce\\"] unset (no admission-time pod security)",
+      "controls": []
     },
     {
       "findingId": "NOIP-POD-005:Pod/noip-test-bad/privileged/app",

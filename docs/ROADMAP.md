@@ -53,8 +53,16 @@ A separate reviewer agent audited the stack and found eight defects. All eight a
 
 The review also raised two minor issues, which are fixed as well: overlapping suppressions were reported as stale, and egress to `0.0.0.0/0` was not flagged.
 
+## 7. Pod Security Admission enforcement check
+Status: shipped (`loop/r7-psa`)
+
+NOIP-NS-001 flags a namespace that doesn't enforce the Pod Security Admission `baseline` or `restricted` profile. It's the 15th check, so the set is now at its cap.
+
+On kind, the clean namespace now enforces `restricted` for real. That also proves its pods are admissible under that profile.
+
+**Why:** a scan only finds what's already running, while admission control stops a misconfigured pod before it starts. From here on, a new check has to replace or wrap an existing one (ADR-0004).
+
 ## Later
 These are candidates, not commitments:
-- Per-namespace Pod Security Admission label check (this would be check #15, which hits the cap).
 - OpenVEX-style exception export.
 - Signed release artifacts with SLSA provenance, once releases exist.

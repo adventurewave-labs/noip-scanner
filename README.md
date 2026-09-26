@@ -1,6 +1,6 @@
 # NOIP — Kubernetes posture scanner
 
-NOIP is a small, read-only Kubernetes posture scanner. It runs 14 deterministic checks covering pod security, NetworkPolicy coverage, RBAC, and the workload subset of CIS Kubernetes Benchmark Level 1. It produces a report in which every finding cites a concrete resource and field. An optional LLM layer can *explain* the findings, but it cannot add to or change them.
+NOIP is a small, read-only Kubernetes posture scanner. It runs 15 deterministic checks covering pod security, NetworkPolicy coverage, RBAC, and the workload subset of CIS Kubernetes Benchmark Level 1. It produces a report in which every finding cites a concrete resource and field. An optional LLM layer can *explain* the findings, but it cannot add to or change them.
 
 CI verifies it on every PR. A real `kind` cluster is seeded with known misconfigurations and scanned by NOIP under a ServiceAccount that has no `secrets` access. The result must match a golden file exactly, and the report is uploaded as a build artifact.
 
@@ -55,6 +55,7 @@ Exit codes: `0` ok · `1` error · `2` findings at the `--fail-on` threshold · 
 | NOIP-POD-007 | medium | Writable root filesystem | — |
 | NOIP-POD-008 | low | Missing CPU or memory limit | — |
 | NOIP-POD-009 | medium | Secret exposed as env var (`secretKeyRef` / `envFrom`) | 5.4.1 |
+| NOIP-NS-001 | medium | Namespace does not enforce Pod Security Admission `baseline`/`restricted` | — |
 | NOIP-NET-001 | high | Namespace has no NetworkPolicy | 5.3.2 |
 | NOIP-NET-002 | medium | Egress rule with no destination, or to `0.0.0.0/0` / `::/0` without exceptions | — |
 | NOIP-RBAC-001 | critical | `cluster-admin` granted by a ClusterRoleBinding *or RoleBinding* to `system:authenticated`, `system:unauthenticated`, `system:serviceaccounts[:ns]` or `User/system:anonymous` | 5.1.1 |
@@ -66,7 +67,7 @@ Each check is a pure function over lists fetched once per scan (`src/checks/`). 
 Each pod is attributed to the workload that owns it:
 
 - 30 replicas of a Deployment produce one finding, not 30.
-- Pods created by a CronJob are attributed to the CronJob, so finding IDs stay stable from one run to the next. By design the check set is capped at about 15 ([ADR-0004](docs/adr/0004-own-checks-capped.md)). If full CIS coverage is ever needed, the plan is to wrap kube-bench or kubescape rather than keep growing this set.
+- Pods created by a CronJob are attributed to the CronJob, so finding IDs stay stable from one run to the next. The check set is now at its cap of 15 ([ADR-0004](docs/adr/0004-own-checks-capped.md)). If full CIS coverage is ever needed, the plan is to wrap kube-bench or kubescape rather than keep growing this set.
 
 ## Report
 
@@ -98,7 +99,7 @@ It warns when the two reports come from different sources, targets or namespace 
 
 ## Shift-left manifest scanning
 
-`--manifests` runs the same 14 checks against manifests before they reach a cluster:
+`--manifests` runs the same 15 checks against manifests before they reach a cluster:
 
 ```bash
 noip scan --manifests k8s/ --fail-on high                        # plain YAML files or directories

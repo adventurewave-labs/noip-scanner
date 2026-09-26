@@ -37,7 +37,9 @@ export function hardenedPod(ns = 'app', name = 'ok', patch: (p: V1Pod) => void =
   return pod;
 }
 
-export const ns = (...names: string[]): V1Namespace[] => names.map((name) => ({ metadata: { name } }));
+/** Namespaces that satisfy NOIP-NS-001 (PSA enforce=restricted) so other checks can be tested in isolation. */
+export const ns = (...names: string[]): V1Namespace[] =>
+  names.map((name) => ({ metadata: { name, labels: { 'pod-security.kubernetes.io/enforce': 'restricted' } } }));
 
 /** Build a snapshot from the kind fixture YAMLs, exactly as the API would list them (minus server defaults). */
 export function snapshotFromMisconfigFixtures(): ClusterSnapshot {
