@@ -207,10 +207,44 @@ jobs:
           node dist/cli.js scan --demo --explain --out explained.json
           node -e "const r=require('./explained.json'); if(!r.explanation){console.error('explanation is null');process.exit(1)} console.log(r.explanation.summary)"
 
+  action-smoke:
+    name: composite action and pre-commit hook
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: clean
+        uses: ./
+        with:
+          manifests: test/fixtures/misconfig/30-clean.yaml
+          fail-on: high
+      - id: seeded
+        uses: ./
+        continue-on-error: true
+        with:
+          manifests: test/fixtures/misconfig
+          fail-on: high
+          sarif-file: seeded.sarif
+      - name: outputs and gate behave
+        env:
+          CLEAN_SCORE: ${{ steps.clean.outputs.score }}
+          SEEDED_OUTCOME: ${{ steps.seeded.outcome }}
+          SEEDED_FINDINGS: ${{ steps.seeded.outputs.findings }}
+        run: |
+          test "$CLEAN_SCORE" = 100
+          test "$SEEDED_OUTCOME" = failure
+          test "$SEEDED_FINDINGS" -gt 0
+          python3 -c 'import json; assert json.load(open("seeded.sarif"))["version"] == "2.1.0"'
+      - name: pre-commit hook script (fails on the seeded fixtures, passes on the clean one)
+        run: |
+          scripts/pre-commit-noip.sh -o md --fail-on high test/fixtures/misconfig/30-clean.yaml > /dev/null
+          if scripts/pre-commit-noip.sh -o md --fail-on high test/fixtures/misconfig/10-bad-pods.yaml > /dev/null; then exit 1; fi
+
   ci:
     name: ci
     if: always()
-    needs: [verify, supply-chain, kind-scan, docker-smoke]
+    needs: [verify, supply-chain, kind-scan, docker-smoke, action-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: all required jobs passed
@@ -220,3 +254,4 @@ jobs:
           test "${{ needs.supply-chain.result }}" = success
           test "${{ needs.kind-scan.result }}" = success
           test "${{ needs.docker-smoke.result }}" = success
+          test "${{ needs.action-smoke.result }}" = success

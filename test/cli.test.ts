@@ -153,6 +153,16 @@ describe('noip diff subcommand', () => {
   });
 });
 
+describe('noip scan <paths...>', () => {
+  it('treats positional paths as --manifests (what the pre-commit hook passes)', async () => {
+    await main(['node', 'noip', 'scan', '-o', 'json', '--fail-on', 'high', 'test/fixtures/misconfig/10-bad-pods.yaml', 'test/fixtures/misconfig/20-bad-rbac.yaml']);
+    const r = JSON.parse(out);
+    expect(r.source).toBe('manifests');
+    expect(r.findings.length).toBeGreaterThan(0);
+    expect(process.exitCode).toBe(EXIT.FINDINGS_AT_THRESHOLD);
+  });
+});
+
 describe('NOIP_DEMO does not override --manifests', () => {
   it('refuses the combination instead of silently scanning demo data', async () => {
     process.env.NOIP_DEMO = '1';

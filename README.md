@@ -214,6 +214,37 @@ A suppression hides a finding you've decided to accept. Each entry names the fin
 
 Findings from live clusters use the pseudo-path `k8s/<Kind>/<namespace>/<name>`; manifest findings use their real file and line. The output can be loaded into GitHub code scanning (`github/codeql-action/upload-sarif`), which needs GitHub Code Security on private repos, as well as the VS Code SARIF Viewer, DefectDojo and Azure DevOps.
 
+## In CI and before commit
+
+**GitHub Action.** `action.yml` is a composite action that builds NOIP from the pinned revision, scans, writes JSON and SARIF, adds the Markdown report to the job summary and fails at `fail-on`:
+
+```yaml
+- uses: adventurewave-labs/noip-scanner@<commit-sha>
+  id: noip
+  with:
+    manifests: k8s/            # or kubeconfig: path/to/read-only.kubeconfig
+    fail-on: high              # empty = never fail
+- uses: github/codeql-action/upload-sarif@<commit-sha>
+  if: always()
+  with:
+    sarif_file: ${{ steps.noip.outputs.sarif-file }}
+```
+
+Outputs: `score`, `findings`, `sarif-file`, `report-file`. Inputs reach the script through environment variables only, never by template expansion inside `run`. While this repository is private, other repositories can only use the action if its Actions access settings allow it.
+
+**pre-commit.** `.pre-commit-hooks.yaml` defines a `noip` hook for staged `*.yaml`/`*.yml` files. It needs Node 22+ and npm on `PATH`; the first run builds the scanner inside pre-commit's cache (about 15 seconds), and later runs only scan.
+
+```yaml
+repos:
+  - repo: https://github.com/adventurewave-labs/noip-scanner
+    rev: <commit-sha>
+    hooks:
+      - id: noip
+        args: [--fail-on, critical]   # default: high
+```
+
+`noip scan <paths...>` is the same as `noip scan --manifests <paths...>`, which is what the hook uses. Non-Kubernetes YAML is ignored. The CI `action-smoke` job runs the action on the seeded fixtures (clean passes, seeded fails) and runs the hook script both ways.
+
 ## LLM explanation (optional)
 
 | Variable | Default |

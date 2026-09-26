@@ -28,6 +28,7 @@ fixtures/demo-cluster.json          demo-mode data (fictional)
 test/fixtures/misconfig/*.yaml      seeded kind fixtures
 test/golden/kind-findings.json      expected finding IDs for those fixtures
 deploy/rbac.yaml                    read-only ClusterRole (golden-tested: no secrets)
+action.yml, .pre-commit-hooks.yaml  distribution (composite action; script hook → scripts/pre-commit-noip.sh)
 ```
 
 ## Rules

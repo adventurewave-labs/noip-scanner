@@ -1,0 +1,105 @@
+name: NOIP posture scan
+description: Scan Kubernetes YAML (or a cluster, with a kubeconfig) for posture findings; emits SARIF, a job summary and a score.
+author: AdventureWave Labs
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  manifests:
+    description: Space-separated YAML files or directories to scan offline. Leave empty and set `kubeconfig` to scan a live cluster.
+    required: false
+    default: ''
+  kubeconfig:
+    description: Path to a kubeconfig for a live, read-only scan (see deploy/rbac.yaml). Ignored when `manifests` is set.
+    required: false
+    default: ''
+  fail-on:
+    description: Fail the step if any finding is at or above this severity (critical, high, medium, low). Empty never fails.
+    required: false
+    default: high
+  min-severity:
+    description: Only report findings at or above this severity.
+    required: false
+    default: ''
+  sarif-file:
+    description: Where to write the SARIF report (upload it with github/codeql-action/upload-sarif).
+    required: false
+    default: noip.sarif
+  report-file:
+    description: Where to write the JSON report.
+    required: false
+    default: noip-report.json
+  lang:
+    description: Language of the job summary (en or es).
+    required: false
+    default: en
+
+outputs:
+  score:
+    description: Posture score, 0-100.
+    value: ${{ steps.scan.outputs.score }}
+  findings:
+    description: Number of reported findings.
+    value: ${{ steps.scan.outputs.findings }}
+  sarif-file:
+    description: Path of the SARIF report.
+    value: ${{ steps.scan.outputs.sarif-file }}
+  report-file:
+    description: Path of the JSON report.
+    value: ${{ steps.scan.outputs.report-file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 22
+    - name: build noip
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --no-audit --no-fund --ignore-scripts && npm run build
+    - id: scan
+      name: noip scan
+      shell: bash
+      # Inputs reach the script through the environment only, never by template expansion inside `run`.
+      env:
+        NOIP_BIN: ${{ github.action_path }}/dist/cli.js
+        IN_MANIFESTS: ${{ inputs.manifests }}
+        IN_KUBECONFIG: ${{ inputs.kubeconfig }}
+        IN_FAIL_ON: ${{ inputs.fail-on }}
+        IN_MIN_SEVERITY: ${{ inputs.min-severity }}
+        IN_SARIF: ${{ inputs.sarif-file }}
+        IN_REPORT: ${{ inputs.report-file }}
+        IN_LANG: ${{ inputs.lang }}
+      run: |
+        set -euo pipefail
+        args=()
+        if [ -n "$IN_MANIFESTS" ]; then
+          read -ra paths <<< "$IN_MANIFESTS"
+          args+=(--manifests "${paths[@]}")
+        elif [ -n "$IN_KUBECONFIG" ]; then
+          args+=(--kubeconfig "$IN_KUBECONFIG")
+        else
+          echo "::error::set either 'manifests' or 'kubeconfig'"; exit 1
+        fi
+        if [ -n "$IN_MIN_SEVERITY" ]; then args+=(--min-severity "$IN_MIN_SEVERITY"); fi
+        node "$NOIP_BIN" scan "${args[@]}" -o json --out "$IN_REPORT"
+        node "$NOIP_BIN" scan "${args[@]}" -o sarif --out "$IN_SARIF"
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then node "$NOIP_BIN" scan "${args[@]}" -o md --lang "$IN_LANG" >> "$GITHUB_STEP_SUMMARY"; fi
+        node -e '
+          const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `score=${r.summary.score}\nfindings=${r.summary.findings}\n`);
+        ' "$IN_REPORT"
+        { echo "sarif-file=$IN_SARIF"; echo "report-file=$IN_REPORT"; } >> "$GITHUB_OUTPUT"
+        if [ -n "$IN_FAIL_ON" ]; then
+          # Re-evaluate the gate from the saved report so the scan runs once per format, not once more.
+          node -e '
+            const sev = ["critical", "high", "medium", "low"];
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const limit = sev.indexOf(process.argv[2]);
+            if (limit < 0) { console.error(`::error::fail-on must be one of ${sev.join(", ")}`); process.exit(1); }
+            const hit = r.findings.filter((f) => sev.indexOf(f.severity) <= limit);
+            if (hit.length) { console.error(`::error::${hit.length} finding(s) at or above ${process.argv[2]}`); process.exit(2); }
+          ' "$IN_REPORT" "$IN_FAIL_ON"
+        fi

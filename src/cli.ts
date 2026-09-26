@@ -119,7 +119,8 @@ export function buildCli(): Command {
   const program = new Command('noip').description('Read-only Kubernetes posture scanner').version(scannerInfo().version);
   program
     .command('scan')
-    .description('Scan the current (or given) kubeconfig context and emit a findings report')
+    .description('Scan the current (or given) kubeconfig context and emit a findings report; with paths, scan YAML offline')
+    .argument('[paths...]', 'YAML files or directories to scan offline (same as --manifests)')
     .option('--kubeconfig <path>', 'kubeconfig file (default: $KUBECONFIG or ~/.kube/config, or in-cluster)')
     .option('--context <name>', 'kubeconfig context to use')
     .option('--contexts <names...>', 'scan several contexts (one report each + fleet summary; needs --out-dir)')
@@ -140,8 +141,8 @@ export function buildCli(): Command {
     .option('--demo', 'scan the bundled demo fixture instead of a cluster (same as NOIP_DEMO=1)')
     .addOption(new Option('--min-severity <severity>', 'only report findings at or above this severity (recorded in provenance)').choices([...SEVERITIES]))
     .addOption(new Option('--fail-on <severity>', 'exit 2 if any finding is at or above this severity').choices([...SEVERITIES]))
-    .action(async (flags: ScanFlags) => {
-      process.exitCode = await runScan(flags);
+    .action(async (paths: string[], flags: ScanFlags) => {
+      process.exitCode = await runScan(paths.length ? { ...flags, manifests: [...(flags.manifests ?? []), ...paths] } : flags);
     });
   program
     .command('diff')
