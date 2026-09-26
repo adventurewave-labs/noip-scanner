@@ -25,7 +25,8 @@
     "doc-lint": "bash scripts/doc-lint.sh",
     "start": "node dist/api/server.js",
     "noip": "node dist/cli.js",
-    "ratchet": "node scripts/check-ratchet.mjs"
+    "ratchet": "node scripts/check-ratchet.mjs",
+    "bench": "npm run build && node --no-deprecation scripts/bench.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

@@ -72,7 +72,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 11 | Remediation patches (JSON Patch per finding) and `noip fix` for manifests, preserving comments | shipped (`loop/r11-fix`) |
 | 12 | Import third-party SARIF (Trivy, kubescape, Checkov) into one report, without changing NOIP's score | shipped (`loop/r12-import-sarif`) |
 | 13 | Multi-context (fleet) scans: one report per cluster, `fleet.json`/`fleet.md`, and an unreachable cluster doesn't stop the run | shipped (`loop/r13-multi-context`) |
-| 14 | Pagination and a scale benchmark | planned |
+| 14 | Paginated LIST (limit/continue, restart on 410) and a scale benchmark (10k pods in about 0.3 s) | shipped (`loop/r14-scale`) |
 | 15 | Property-based and fuzz tests | planned |
 | 16 | OpenAPI spec for the HTTP API | planned |
 | 17 | NSA/CISA and NIST 800-190 reference mappings | planned |

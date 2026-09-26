@@ -72,6 +72,15 @@ Each pod is attributed to the workload that owns it:
 - 30 replicas of a Deployment produce one finding, not 30.
 - Pods created by a CronJob are attributed to the CronJob, so finding IDs stay stable from one run to the next. The check set is now at its cap of 15 ([ADR-0004](docs/adr/0004-own-checks-capped.md)). If full CIS coverage is ever needed, the plan is to wrap kube-bench or kubescape rather than keep growing this set.
 
+## Scale
+
+- **Chunked lists.** Every cluster LIST call is fetched in pages of 500 using `limit`/`continue`, so a very large cluster never needs one giant response.
+- **Expired lists.** If a continue token expires mid-list (HTTP 410), the list restarts once from the beginning so the result stays consistent.
+- **Measured speed.** `npm run bench` on the cloud dev box:
+  - 10k pods across 500 namespaces: scan in about 0.3 s, HTML plus SARIF in about 0.25 s, about 160 MB heap.
+  - 50k pods: scan in about 1 s.
+- **CI budget.** `test/scale.test.ts` runs a 10k-pod budget check on every PR.
+
 ## Report
 
 Reports validate against [`schemas/report.schema.json`](schemas/report.schema.json). Every report carries:

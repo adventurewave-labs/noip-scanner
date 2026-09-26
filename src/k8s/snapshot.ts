@@ -35,6 +35,39 @@ async function call<T>(what: string, p: Promise<T>, timeoutMs: number): Promise<
   }
 }
 
+export const PAGE_SIZE = 500;
+const MAX_PAGES = 1000; // 500k objects: far beyond any sane cluster; guards against a server that never ends the list
+
+interface Page<T> {
+  items: T[];
+  metadata?: { _continue?: string };
+}
+
+/**
+ * Chunked LIST (limit/continue), so very large clusters don't need one giant response.
+ * On 410 Gone (continue token expired mid-list) the list restarts once from scratch for a consistent result.
+ */
+export async function listAll<T>(what: string, fetchPage: (p: { limit: number; _continue?: string }) => Promise<Page<T>>, timeoutMs: number): Promise<T[]> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const items: T[] = [];
+    let token: string | undefined;
+    try {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const res = await call(what, fetchPage({ limit: PAGE_SIZE, ...(token ? { _continue: token } : {}) }), timeoutMs);
+        items.push(...res.items);
+        token = res.metadata?._continue || undefined;
+        if (!token) return items;
+      }
+      throw new K8sUnavailable(`${what}: more than ${MAX_PAGES} pages; refusing to continue`);
+    } catch (err) {
+      if (err instanceof K8sUnavailable && err.httpStatus === 410 && attempt === 0) continue;
+      throw err;
+    }
+  }
+  /* v8 ignore next */
+  throw new K8sUnavailable(`${what}: list kept expiring`);
+}
+
 /**
  * Fetch every list the checks need, exactly once. Any failure raises K8sUnavailable;
  * there is deliberately no fixture fallback (PRD R-3).
@@ -49,23 +82,23 @@ export async function fetchSnapshot(kc: KubeConfig, timeoutMs = Number(process.e
 
   const [v, nodes, namespaces, pods, netpols, crbs, rbs] = await Promise.all([
     call('GET /version', version.getCode(), timeoutMs),
-    call('list nodes', core.listNode(), timeoutMs),
-    call('list namespaces', core.listNamespace(), timeoutMs),
-    call('list pods', core.listPodForAllNamespaces(), timeoutMs),
-    call('list networkpolicies', net.listNetworkPolicyForAllNamespaces(), timeoutMs),
-    call('list clusterrolebindings', rbac.listClusterRoleBinding(), timeoutMs),
-    call('list rolebindings', rbac.listRoleBindingForAllNamespaces(), timeoutMs),
+    listAll('list nodes', (p) => core.listNode(p), timeoutMs),
+    listAll('list namespaces', (p) => core.listNamespace(p), timeoutMs),
+    listAll('list pods', (p) => core.listPodForAllNamespaces(p), timeoutMs),
+    listAll('list networkpolicies', (p) => net.listNetworkPolicyForAllNamespaces(p), timeoutMs),
+    listAll('list clusterrolebindings', (p) => rbac.listClusterRoleBinding(p), timeoutMs),
+    listAll('list rolebindings', (p) => rbac.listRoleBindingForAllNamespaces(p), timeoutMs),
   ]);
 
   return {
     serverVersion: { gitVersion: v.gitVersion, platform: v.platform },
     context: kc.getCurrentContext() || undefined,
-    nodeCount: nodes.items.length,
-    namespaces: namespaces.items,
-    pods: pods.items,
-    networkPolicies: netpols.items,
-    clusterRoleBindings: crbs.items,
-    roleBindings: rbs.items,
+    nodeCount: nodes.length,
+    namespaces,
+    pods,
+    networkPolicies: netpols,
+    clusterRoleBindings: crbs,
+    roleBindings: rbs,
   };
 }
 
