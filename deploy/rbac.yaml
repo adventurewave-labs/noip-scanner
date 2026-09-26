@@ -1,0 +1,40 @@
+# NOIP runs read-only. This ClusterRole is golden-tested (test/rbac.test.ts):
+# only get/list/watch verbs, and never `secrets`.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: noip-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: noip
+  namespace: noip-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: noip-reader
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, pods, nodes]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterrolebindings, rolebindings]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: noip-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: noip-reader
+subjects:
+  - kind: ServiceAccount
+    name: noip
+    namespace: noip-system

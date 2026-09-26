@@ -1,0 +1,19 @@
+# PRD requirement traceability
+
+This table maps each PRD requirement to where it lives in the code and what verifies it. Status reflects the state of the initial build PR.
+
+| Req | Where | Verified by |
+|---|---|---|
+| **R-1** Single CI workflow | `.github/workflows/ci.yml` (jobs `verify → kind-scan, docker-smoke → ci`); no `schedule:`, no deploy, no image push | CI run on the build PR. Branch protection requiring `ci` is a manual step for the owner. |
+| **R-2** Cut non-core surface | Holds by construction: nothing simulated, no auth DB, no Mongo/Redis, no PSP, no placeholder deploys (ADR-0001) | `grep -r "Math.random" src/` returns nothing; `/health` has no "capabilities" (`test/api.test.ts`) |
+| **R-3** No silent fixtures | `src/k8s/snapshot.ts`, `src/scan.ts#getSnapshot`, `src/api/app.ts` | `test/api.test.ts` covers 503 `K8sUnavailable` with no kubeconfig, 200 + `source:"demo"` with `NOIP_DEMO`, and `degraded` health; the docker-smoke job |
+| **R-4** Live verification on kind | `test/fixtures/misconfig/`, `test/golden/kind-findings.json`, `scripts/golden-compare.mjs`, `deploy/rbac.yaml`, `scripts/sa-kubeconfig.sh` | The kind-scan job (report artifact uploaded); `test/golden.test.ts` offline; `test/rbac.test.ts` |
+| **R-5** Boots and is protected | NodeNext + `.js` imports, `rootDir: src` → `dist/api/server.js`, runtime deps in `dependencies`, Express 5 catch-all, bearer middleware | docker-smoke (build, `/health` 200, 401 without token); `test/api.test.ts` |
+| **R-6** LLM seam | `src/llm/*` | `test/llm.test.ts` (redaction snapshot, schema failure, provider swap); `test/anthropic.test.ts`; manual `llm-live` job |
+| **R-7** CLI | `src/cli.ts` | `test/cli.test.ts`; the kind job scans through the CLI; md evidence lines equal JSON (`test/report.test.ts`) |
+| **R-8** Honest docs | README, CLAUDE.md, ADRs, `scripts/doc-lint.sh` | The doc-lint step in `verify`. The GitHub description is set on repo creation. |
+| **R-9** Coverage ratchet | `vitest.config.ts` (core paths only), `coverage-thresholds.json`, `scripts/check-ratchet.mjs` | The `verify` job fails below threshold, and fails if a PR lowers a threshold. The 80% statement target is already exceeded at baseline. |
+| **R-10** Report provenance | `src/report/provenance.ts`, `src/scan.ts`, `schemas/report.schema.json` | `test/report.test.ts`; schema validation in `verify` and `kind-scan` |
+| **R-11** Python scripts | Not ported (ADR-0001). The old repo keeps them. | n/a |
+| **R-12** Ingest netinspect | `src/report/netinspect.ts`, `schemas/netinspect-input.schema.json` | `test/report.test.ts`, `test/cli.test.ts`. Note that k8s-netinspect has no JSON output yet; this schema is the contract. |
+| **R-13** Railway preview | `railway.json`, demo banner at `GET /`, `X-NOIP-Mode: demo` header | `test/api.test.ts`; the demo step in docker-smoke. Connecting the Railway service to the repo is a manual step. |

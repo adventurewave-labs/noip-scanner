@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NOIP --netinspect input",
+  "type": "object",
+  "required": [
+    "checks"
+  ],
+  "properties": {
+    "tool": {
+      "const": "k8s-netinspect"
+    },
+    "version": {
+      "type": "string"
+    },
+    "cni": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "warn",
+              "fail",
+              "info"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          }
+        }
+      },
+      "maxItems": 500
+    }
+  }
+}

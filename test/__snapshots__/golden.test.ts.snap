@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: demo fixture > produces a stable finding set 1`] = `
+{
+  "ids": [
+    "NOIP-POD-001:Pod/ci/debug-shell/shell",
+    "NOIP-POD-002:DaemonSet/monitoring/node-exporter",
+    "NOIP-NET-001:Namespace/ci",
+    "NOIP-NET-001:Namespace/default",
+    "NOIP-NET-001:Namespace/payments",
+    "NOIP-POD-003:Pod/ci/debug-shell",
+    "NOIP-POD-004:DaemonSet/monitoring/node-exporter",
+    "NOIP-POD-006:Deployment/payments/api/api",
+    "NOIP-POD-006:Deployment/payments/api/migrate",
+    "NOIP-POD-006:Pod/ci/debug-shell/shell",
+    "NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin",
+    "NOIP-NET-002:NetworkPolicy/shop/allow-egress",
+    "NOIP-POD-005:DaemonSet/monitoring/node-exporter/node-exporter",
+    "NOIP-POD-005:Pod/ci/debug-shell/shell",
+    "NOIP-POD-007:Deployment/shop/frontend/frontend",
+    "NOIP-POD-007:Pod/ci/debug-shell/shell",
+    "NOIP-POD-009:Deployment/payments/api/api",
+    "NOIP-POD-009:Deployment/payments/api/migrate",
+    "NOIP-RBAC-003:RoleBinding/payments/payments-reader",
+    "NOIP-POD-008:Deployment/shop/frontend/frontend",
+    "NOIP-POD-008:Pod/ci/debug-shell/shell",
+  ],
+  "summary": {
+    "bySeverity": {
+      "critical": 2,
+      "high": 9,
+      "low": 2,
+      "medium": 8,
+    },
+    "checksFailed": 13,
+    "controlsFailed": 10,
+    "findings": 21,
+    "score": 13,
+  },
+}
+`;

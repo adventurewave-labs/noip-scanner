@@ -1,0 +1,120 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`redaction (R-6) > outgoing prompt for the seeded fixtures never contains the seeded secret value (snapshot) 1`] = `
+"You are a Kubernetes security reviewer explaining the output of a deterministic posture scanner to an engineering lead.
+Use ONLY the findings provided. Do not invent findings, resources, CVEs or compliance claims.
+Control mappings are reference mappings, not an attestation — never state that the cluster is or is not compliant.
+Reply with a single JSON object and nothing else:
+{"summary": string (<= 120 words), "priorities": [{"findingId": string (copied exactly from input), "why": string, "fix": string}] (<= 10, most urgent first), "caveats": string[] (<= 5)}
+Scan results (redacted):
+{
+  "source": "live",
+  "kubernetesVersion": "v1.31.0",
+  "summary": {
+    "score": 50,
+    "findings": 6,
+    "bySeverity": {
+      "critical": 2,
+      "high": 2,
+      "medium": 2,
+      "low": 0
+    },
+    "checksFailed": 6,
+    "controlsFailed": 7
+  },
+  "findings": [
+    {
+      "findingId": "NOIP-POD-001:Pod/noip-test-bad/privileged/app",
+      "checkId": "NOIP-POD-001",
+      "severity": "critical",
+      "title": "Privileged container",
+      "evidence": "spec.containers[app].securityContext.privileged=true password=[REDACTED]",
+      "controls": [
+        "CIS-5.2.1"
+      ]
+    },
+    {
+      "findingId": "NOIP-POD-002:Pod/noip-test-bad/hostpid",
+      "checkId": "NOIP-POD-002",
+      "severity": "critical",
+      "title": "Pod shares the host PID namespace",
+      "evidence": "spec.hostPID=true",
+      "controls": [
+        "CIS-5.2.2"
+      ]
+    },
+    {
+      "findingId": "NOIP-NET-001:Namespace/noip-test-bad",
+      "checkId": "NOIP-NET-001",
+      "severity": "high",
+      "title": "Namespace has no NetworkPolicy",
+      "evidence": "0 NetworkPolicy objects in namespace noip-test-bad",
+      "controls": [
+        "CIS-5.3.2"
+      ]
+    },
+    {
+      "findingId": "NOIP-RBAC-002:ClusterRoleBinding/noip-test-default-sa-admin",
+      "checkId": "NOIP-RBAC-002",
+      "severity": "high",
+      "title": "cluster-admin granted to a default ServiceAccount",
+      "evidence": "roleRef=ClusterRole/cluster-admin subject=ServiceAccount/noip-test-bad/default",
+      "controls": [
+        "CIS-5.1.1",
+        "CIS-5.1.5"
+      ]
+    },
+    {
+      "findingId": "NOIP-POD-005:Pod/noip-test-bad/privileged/app",
+      "checkId": "NOIP-POD-005",
+      "severity": "medium",
+      "title": "Privilege escalation not disabled",
+      "evidence": "spec.containers[app].securityContext.allowPrivilegeEscalation=unset",
+      "controls": [
+        "CIS-5.2.5"
+      ]
+    },
+    {
+      "findingId": "NOIP-POD-009:Pod/noip-test-bad/secret-env/app",
+      "checkId": "NOIP-POD-009",
+      "severity": "medium",
+      "title": "Secret exposed as environment variable",
+      "evidence": "spec.containers[app]: env[DB_PASSWORD] <- secret db-creds/password",
+      "controls": [
+        "CIS-5.4.1"
+      ]
+    }
+  ],
+  "truncatedFindings": 0,
+  "failedControls": [
+    {
+      "id": "CIS-5.1.1",
+      "title": "cluster-admin role is only used where required"
+    },
+    {
+      "id": "CIS-5.1.5",
+      "title": "Default service accounts are not actively used"
+    },
+    {
+      "id": "CIS-5.2.1",
+      "title": "Minimize the admission of privileged containers"
+    },
+    {
+      "id": "CIS-5.2.2",
+      "title": "Minimize containers sharing the host PID namespace"
+    },
+    {
+      "id": "CIS-5.2.5",
+      "title": "Minimize containers with allowPrivilegeEscalation"
+    },
+    {
+      "id": "CIS-5.3.2",
+      "title": "All namespaces have NetworkPolicies defined"
+    },
+    {
+      "id": "CIS-5.4.1",
+      "title": "Prefer secrets as files over secrets as environment variables"
+    }
+  ]
+}"
+`;

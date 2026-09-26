@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adventurewave-labs/noip-scanner/schemas/report.schema.json",
+  "title": "NOIP posture report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "provenance",
+    "summary",
+    "findings",
+    "controls",
+    "mappingDisclaimer"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "source": {
+      "enum": [
+        "live",
+        "demo"
+      ],
+      "description": "live = read from a Kubernetes API; demo = bundled fixture (NOIP_DEMO=1)."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanner",
+        "cluster",
+        "scannedAt",
+        "checksRun",
+        "excludedNamespaces"
+      ],
+      "properties": {
+        "scanner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "gitSha"
+          ],
+          "properties": {
+            "name": {
+              "const": "noip"
+            },
+            "version": {
+              "type": "string"
+            },
+            "gitSha": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "cluster": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "serverVersion",
+            "nodeCount"
+          ],
+          "properties": {
+            "serverVersion": {
+              "type": "string",
+              "pattern": "^v[0-9]+\\.[0-9]+",
+              "description": "From the /version API, not kubelet."
+            },
+            "platform": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "nodeCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "scannedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checksRun": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^NOIP-[A-Z]+-[0-9]{3}$"
+          }
+        },
+        "excludedNamespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "score",
+        "findings",
+        "bySeverity",
+        "checksFailed",
+        "controlsFailed"
+      ],
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bySeverity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ],
+          "properties": {
+            "critical": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "high": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "medium": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "low": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "checksFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "controlsFailed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "checkId",
+          "title",
+          "severity",
+          "category",
+          "resource",
+          "evidence",
+          "remediation",
+          "controls"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^NOIP-[A-Z]+-[0-9]{3}:"
+          },
+          "checkId": {
+            "type": "string",
+            "pattern": "^NOIP-[A-Z]+-[0-9]{3}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "name"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "namespace": {
+                "type": "string"
+              },
+              "container": {
+                "type": "string"
+              }
+            }
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "remediation": {
+            "type": "string"
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^CIS-"
+            }
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "benchmark",
+          "status",
+          "findingIds",
+          "referenceMappings"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "benchmark": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          },
+          "findingIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "referenceMappings": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "soc2",
+              "hipaa"
+            ],
+            "properties": {
+              "soc2": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "hipaa": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "mappingDisclaimer": {
+      "type": "string",
+      "pattern": "reference mappings, not an attestation"
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "inputSha256",
+        "checks"
+      ],
+      "properties": {
+        "source": {
+          "const": "k8s-netinspect"
+        },
+        "toolVersion": {
+          "type": "string"
+        },
+        "cni": {
+          "type": "string"
+        },
+        "inputSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "status"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pass",
+                  "warn",
+                  "fail",
+                  "info"
+                ]
+              },
+              "detail": {
+                "type": "string"
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "explanation": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "summary",
+            "priorities",
+            "caveats"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "priorities": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "findingId",
+                  "why",
+                  "fix"
+                ],
+                "properties": {
+                  "findingId": {
+                    "type": "string"
+                  },
+                  "why": {
+                    "type": "string"
+                  },
+                  "fix": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

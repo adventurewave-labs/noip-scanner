@@ -1,0 +1,43 @@
+# Control case: fully hardened workloads + default-deny policy. Must yield zero findings.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: noip-test-clean
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hardened
+  namespace: noip-test-clean
+spec:
+  automountServiceAccountToken: false
+  securityContext: { runAsNonRoot: true, runAsUser: 65534, seccompProfile: { type: RuntimeDefault } }
+  containers:
+    - name: app
+      image: registry.k8s.io/pause:3.10
+      securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+      resources: { limits: { cpu: 50m, memory: 32Mi } }
+---
+# Exercises ReplicaSet -> Deployment attribution on a real cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: noip-test-clean
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65534, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: web
+          image: registry.k8s.io/pause:3.10
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: { limits: { cpu: 50m, memory: 32Mi } }

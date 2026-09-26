@@ -1,0 +1,168 @@
+# The only workflow in this repo (PRD R-1). No schedules, no deploys, no image pushes.
+# Require the `ci` check on main in branch protection.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      llm_live:
+        description: Also run the live LLM explanation test (uses the ANTHROPIC_API_KEY secret)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck → lint → unit → build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: typecheck
+        run: npm run typecheck
+      - name: lint
+        run: npm run lint
+      - name: doc-lint (banned phrases outside docs/archive)
+        run: npm run doc-lint
+      - name: unit tests + coverage gate
+        run: npm run coverage
+      - name: coverage ratchet (thresholds never decrease)
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-ratchet.mjs origin/${{ github.base_ref }}
+      - name: build
+        run: npm run build
+      - name: demo report validates against schemas/report.schema.json
+        run: |
+          node dist/cli.js scan --demo --out demo-report.json
+          node scripts/validate-report.mjs demo-report.json
+
+  kind-scan:
+    name: live scan against kind (golden)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci && npm run build
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: noip
+      - name: install read-only RBAC and seed misconfigurations
+        run: |
+          kubectl apply -f deploy/rbac.yaml
+          kubectl apply -f test/fixtures/misconfig/
+          # Wait until the Deployment's pods exist (they need not be Running; NOIP reads specs).
+          for i in $(seq 1 60); do
+            n=$(kubectl -n noip-test-clean get pods -l app=web --no-headers 2>/dev/null | wc -l)
+            [ "$n" -ge 2 ] && break; sleep 2
+          done
+          kubectl get pods -A -o wide
+      - name: mint a read-only kubeconfig for the noip ServiceAccount (no secrets access)
+        run: |
+          scripts/sa-kubeconfig.sh noip.kubeconfig 1h
+          test "$(kubectl --kubeconfig=noip.kubeconfig auth can-i list pods -A)" = "yes"
+      - name: noip scan (CLI, read-only ServiceAccount)
+        run: |
+          node dist/cli.js scan --kubeconfig noip.kubeconfig --out report.json
+          node dist/cli.js scan --kubeconfig noip.kubeconfig -o md --out report.md
+      - name: validate report schema
+        run: node scripts/validate-report.mjs report.json
+      - name: golden comparison (5/5 seeded, 0 in clean namespace)
+        run: node scripts/golden-compare.mjs report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kind-report
+          path: |
+            report.json
+            report.md
+          if-no-files-found: warn
+
+  docker-smoke:
+    name: docker image boots, is gated, degrades honestly
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: build image
+        run: docker build --build-arg NOIP_GIT_SHA=${{ github.sha }} -t noip:ci .
+      - name: refuses to start without a token
+        run: |
+          set +e; docker run --rm noip:ci; code=$?; set -e
+          test "$code" -ne 0 && echo "exited $code without NOIP_API_TOKEN: OK"
+      - name: live mode, no cluster
+        run: |
+          TOKEN=ci-token-$(openssl rand -hex 12)
+          docker run -d --name live -p 3000:3000 -e NOIP_API_TOKEN=$TOKEN noip:ci
+          for i in $(seq 1 30); do curl -fs localhost:3000/health >/dev/null && break; sleep 1; done
+          curl -fsS localhost:3000/health | tee health.json; echo
+          grep -q '"status":"degraded"' health.json
+          grep -q '"gitSha":"${{ github.sha }}"' health.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/api/scan)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" localhost:3000/api/discovery/cluster)" = "503"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -X POST localhost:3000/api/report/explain)" = "501"
+      - name: demo mode
+        run: |
+          docker run -d --name demo -p 3001:3000 -e NOIP_API_TOKEN=demo-token-0123456789 -e NOIP_DEMO=1 noip:ci
+          for i in $(seq 1 30); do curl -fs localhost:3001/health >/dev/null && break; sleep 1; done
+          curl -fsS -H "Authorization: Bearer demo-token-0123456789" localhost:3001/api/discovery/cluster | tee disc.json; echo
+          grep -q '"source":"demo"' disc.json
+          curl -fsS localhost:3001/ | grep -q 'DEMO MODE'
+      - name: container logs
+        if: always()
+        run: docker logs live || true; docker logs demo || true
+
+  llm-live:
+    name: live LLM explanation (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.llm_live
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci && npm run build
+      - name: explain the demo report with the real provider
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOIP_LLM_MODEL: ${{ vars.NOIP_LLM_MODEL }}
+        run: |
+          node dist/cli.js scan --demo --explain --out explained.json
+          node -e "const r=require('./explained.json'); if(!r.explanation){console.error('explanation is null');process.exit(1)} console.log(r.explanation.summary)"
+
+  ci:
+    name: ci
+    if: always()
+    needs: [verify, kind-scan, docker-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: all required jobs passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          test "${{ needs.verify.result }}" = success
+          test "${{ needs.kind-scan.result }}" = success
+          test "${{ needs.docker-smoke.result }}" = success

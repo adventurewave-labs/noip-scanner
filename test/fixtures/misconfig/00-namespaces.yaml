@@ -1,0 +1,12 @@
+# Seeded misconfiguration for the kind golden test (PRD R-4).
+# noip-test-bad: deliberately has NO NetworkPolicy  -> NOIP-NET-001 / CIS-5.3.2
+# noip-test-clean: control case; must produce zero findings.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: noip-test-bad
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: noip-test-clean
