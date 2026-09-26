@@ -71,7 +71,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 10 | Audit evidence bundle: SHA256SUMS and an in-toto provenance statement, plus `noip verify-bundle` | shipped (`loop/r10-bundle`) |
 | 11 | Remediation patches (JSON Patch per finding) and `noip fix` for manifests, preserving comments | shipped (`loop/r11-fix`) |
 | 12 | Import third-party SARIF (Trivy, kubescape, Checkov) into one report, without changing NOIP's score | shipped (`loop/r12-import-sarif`) |
-| 13 | Multi-context scans | planned |
+| 13 | Multi-context (fleet) scans: one report per cluster, `fleet.json`/`fleet.md`, and an unreachable cluster doesn't stop the run | shipped (`loop/r13-multi-context`) |
 | 14 | Pagination and a scale benchmark | planned |
 | 15 | Property-based and fuzz tests | planned |
 | 16 | OpenAPI spec for the HTTP API | planned |

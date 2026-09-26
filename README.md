@@ -37,6 +37,7 @@ This works with any kubeconfig, including kind, MicroK8s (`microk8s config > kc`
 | `--exclude-namespace <ns...>` | Skip more namespaces. |
 | `--min-severity <severity>` | Only report findings at or above this severity. The summary and controls are computed from the kept findings, and the threshold is recorded in `provenance.minSeverity`. |
 | `--fail-on <severity>` | Exit `2` if any finding is at or above this severity. Useful as a pipeline gate. |
+| `--contexts <names...>` / `--all-contexts` + `--out-dir <dir>` | Scan several clusters in one run: one report per context in the chosen format, plus `fleet.json` and `fleet.md`. An unreachable cluster is recorded and the run continues, then exits `3`. `--fail-on` applies across all clusters. |
 | `--manifests <paths...>` | Scan YAML files or directories offline instead of a cluster (see [below](#shift-left-manifest-scanning)). `-` reads stdin. |
 | `--bundle <dir>` | Also write an audit evidence bundle (see [below](#audit-evidence-bundle)). |
 | `--ignore-file <path>` / `--no-ignore` | Accepted-risk suppressions (see [below](#suppressions-accepted-risk)). `./.noip-ignore.yaml` is loaded automatically if it exists. |

@@ -34,6 +34,9 @@ interface ScanFlags {
   ignore?: boolean;
   bundle?: string;
   importSarif?: string[];
+  contexts?: string[];
+  allContexts?: boolean;
+  outDir?: string;
   minSeverity?: Severity;
   failOn?: Severity;
 }
@@ -55,6 +58,7 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   if (flags.manifests?.length && (demo || flags.kubeconfig || flags.context)) {
     throw new Error(`--manifests cannot be combined with ${demo && !flags.demo ? 'NOIP_DEMO' : '--demo'}, --kubeconfig or --context`);
   }
+  if (flags.contexts?.length || flags.allContexts) return runFleet(flags, opts);
   const { snapshot, source } = await getSnapshot(opts);
   const report = buildReport(snapshot, source, opts);
   for (const w of report.warnings ?? []) warn(`warning: ${w}`);
@@ -90,6 +94,25 @@ export async function runScan(flags: ScanFlags): Promise<number> {
   return EXIT.OK;
 }
 
+async function runFleet(flags: ScanFlags, opts: Parameters<typeof buildReport>[2] & { kubeconfig?: string; demo?: boolean; manifests?: string[] }): Promise<number> {
+  if (flags.context || opts.demo || opts.manifests?.length) throw new Error('--contexts/--all-contexts cannot be combined with --context, --demo or --manifests');
+  if (!flags.outDir) throw new Error('--contexts/--all-contexts need --out-dir <dir> (one report per cluster + fleet.json/fleet.md)');
+  if (flags.out || flags.bundle || flags.explain || flags.netinspect || flags.importSarif?.length) {
+    throw new Error('--out, --bundle, --explain, --netinspect and --import-sarif apply to a single cluster; run them per context');
+  }
+  const { allContexts, scanFleet } = await import('./fleet.js');
+  const contexts = flags.allContexts ? allContexts(opts.kubeconfig) : flags.contexts!;
+  const { fleet, reports } = await scanFleet(contexts, { ...opts, outDir: flags.outDir, format: flags.output });
+  for (const c of fleet.clusters) warn(c.status === 'ok' ? `${c.context}: ${c.findings} finding(s), score ${c.score}/100` : `${c.context}: UNREACHABLE (${c.error})`);
+  warn(`fleet: ${fleet.clusters.filter((c) => c.status === 'ok').length}/${fleet.clusters.length} cluster(s) scanned -> ${flags.outDir}/fleet.md`);
+  if (fleet.clusters.some((c) => c.status === 'unreachable')) return EXIT.K8S_UNAVAILABLE;
+  if (flags.failOn) {
+    const limit = SEVERITIES.indexOf(flags.failOn);
+    if (reports.some((r) => r.findings.some((f) => SEVERITIES.indexOf(f.severity) <= limit))) return EXIT.FINDINGS_AT_THRESHOLD;
+  }
+  return EXIT.OK;
+}
+
 export function buildCli(): Command {
   const program = new Command('noip').description('Read-only Kubernetes posture scanner').version(scannerInfo().version);
   program
@@ -97,6 +120,9 @@ export function buildCli(): Command {
     .description('Scan the current (or given) kubeconfig context and emit a findings report')
     .option('--kubeconfig <path>', 'kubeconfig file (default: $KUBECONFIG or ~/.kube/config, or in-cluster)')
     .option('--context <name>', 'kubeconfig context to use')
+    .option('--contexts <names...>', 'scan several contexts (one report each + fleet summary; needs --out-dir)')
+    .option('--all-contexts', 'scan every context in the kubeconfig (needs --out-dir)')
+    .option('--out-dir <dir>', 'output directory for multi-context scans')
     .addOption(new Option('-o, --output <format>', 'report format').choices(['json', 'md', 'sarif', 'html']).default('json'))
     .option('--out <file>', 'write the report to a file instead of stdout')
     .option('--explain', 'add an LLM explanation (redacted input, schema-validated output; needs an API key)')

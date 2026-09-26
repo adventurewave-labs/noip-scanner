@@ -210,3 +210,23 @@ describe('noip scan --import-sarif', () => {
     expect(r.imported.map((x: { tool: string }) => x.tool)).toEqual(['Trivy', 'Checkov']);
   });
 });
+
+describe('noip scan --contexts / --all-contexts', () => {
+  const kc = () => {
+    const f = join(mkdtempSync(join(tmpdir(), 'noip-kc-')), 'config');
+    writeFileSync(f, `apiVersion: v1\nkind: Config\nclusters:\n  - name: c\n    cluster: { server: 'https://127.0.0.1:1', insecure-skip-tls-verify: true }\nusers:\n  - name: u\n    user: { token: t }\ncontexts:\n  - name: one\n    context: { cluster: c, user: u }\n  - name: two\n    context: { cluster: c, user: u }\ncurrent-context: one\n`);
+    return f;
+  };
+  it('scans every context, records unreachable ones and exits 3', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'noip-')), 'fleet');
+    expect(await runScan({ output: 'json', kubeconfig: kc(), allContexts: true, outDir: dir })).toBe(EXIT.K8S_UNAVAILABLE);
+    const fleet = JSON.parse(readFileSync(join(dir, 'fleet.json'), 'utf8'));
+    expect(fleet.clusters.map((c: { context: string; status: string }) => `${c.context}:${c.status}`)).toEqual(['one:unreachable', 'two:unreachable']);
+    expect(err).toMatch(/fleet: 0\/2 cluster\(s\) scanned/);
+  });
+  it('validates flag combinations', async () => {
+    await expect(runScan({ output: 'json', contexts: ['a'] })).rejects.toThrow(/need --out-dir/);
+    await expect(runScan({ output: 'json', contexts: ['a'], outDir: 'x', context: 'b' })).rejects.toThrow(/cannot be combined/);
+    await expect(runScan({ output: 'json', contexts: ['a'], outDir: 'x', bundle: 'b' })).rejects.toThrow(/apply to a single cluster/);
+  });
+});
