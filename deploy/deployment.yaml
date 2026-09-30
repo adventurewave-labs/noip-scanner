@@ -1,0 +1,39 @@
+# Optional in-cluster API. Most use is the CLI from a laptop; see README.
+# Create the token first:  kubectl -n noip-system create secret generic noip-api --from-literal=token="$(openssl rand -hex 24)"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noip
+  namespace: noip-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: noip } }
+  template:
+    metadata: { labels: { app: noip } }
+    spec:
+      serviceAccountName: noip
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: noip
+          image: ghcr.io/adventurewave-labs/noip-scanner:latest # build locally or push yourself; CI does not publish images
+          ports: [{ containerPort: 3000 }]
+          env:
+            - name: NOIP_API_TOKEN_FILE
+              value: /var/run/noip/token
+          volumeMounts:
+            - { name: api-token, mountPath: /var/run/noip, readOnly: true }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: { requests: { cpu: 50m, memory: 96Mi }, limits: { cpu: 500m, memory: 256Mi } }
+          readinessProbe: { httpGet: { path: /health, port: 3000 } }
+      volumes:
+        - name: api-token
+          secret: { secretName: noip-api }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noip
+  namespace: noip-system
+spec:
+  selector: { app: noip }
+  ports: [{ port: 80, targetPort: 3000 }]

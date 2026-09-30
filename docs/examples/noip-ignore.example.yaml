@@ -1,0 +1,16 @@
+# Copy to .noip-ignore.yaml (picked up automatically) or pass --ignore-file.
+# Every entry needs a reason (>= 10 chars), an owner and an expiry date. Expired entries stop applying
+# and print a warning; entries that match nothing are flagged as stale.
+suppressions:
+  # One workload family, by check + resource glob (* = one path segment, ** = any depth).
+  - check: NOIP-POD-004
+    resource: "DaemonSet/monitoring/*"
+    reason: node-exporter must use the host network to scrape node metrics
+    owner: sre@example.com
+    expires: 2026-12-31
+
+  # One exact finding, by its stable finding ID.
+  - id: "NOIP-POD-009:Deployment/payments/api/api"
+    reason: migrating STRIPE_KEY to a mounted secret in PAY-142
+    owner: payments-team
+    expires: 2026-10-31

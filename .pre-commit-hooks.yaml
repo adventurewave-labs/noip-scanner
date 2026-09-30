@@ -1,0 +1,14 @@
+# pre-commit hook: scan staged Kubernetes YAML offline before it is committed.
+# Well-formed non-Kubernetes YAML (CI files, compose files) is ignored; YAML that fails to parse fails the hook.
+# Requires Node 22+ and npm on PATH; the first run builds the scanner inside pre-commit's cache.
+- id: noip
+  name: NOIP Kubernetes posture scan
+  description: Fails the commit if staged manifests have findings at or above --fail-on (default high).
+  entry: scripts/pre-commit-noip.sh -o md
+  language: script
+  files: \.(ya?ml)$
+  # Helm chart templates are Go templates, not YAML; scan rendered output instead (helm template … | noip scan --manifests -).
+  exclude: (^|/)templates/.*\.ya?ml$
+  args: [--fail-on, high]
+  require_serial: true
+  minimum_pre_commit_version: '3.0.0'

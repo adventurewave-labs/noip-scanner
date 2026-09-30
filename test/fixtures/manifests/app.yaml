@@ -1,0 +1,38 @@
+# Rendered-chart style input: comments, several docs, a List, a CronJob and a non-Kubernetes doc.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: shop
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          image: example/api:1.0
+          securityContext: { privileged: true }
+---
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: batch/v1
+    kind: CronJob
+    metadata: { name: nightly, namespace: shop }
+    spec:
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              hostNetwork: true
+              securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+              containers:
+                - name: job
+                  image: example/job:1.0
+                  securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true }
+                  resources: { limits: { cpu: 100m, memory: 64Mi } }
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata: { name: settings, namespace: shop }
+---
+just: some other yaml
+---

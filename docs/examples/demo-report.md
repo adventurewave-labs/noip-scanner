@@ -1,0 +1,320 @@
+# NOIP posture report
+
+> **DEMO DATA.** This report was generated from the bundled fixture `fixtures/demo-cluster.json`, not a live cluster.
+
+| | |
+|---|---|
+| Source | `demo` |
+| Scanned at | 2026-09-26T22:33:59.160Z |
+| Cluster | demo-shop — Kubernetes v1.31.4 (linux/amd64), 3 node(s) |
+| Scanner | noip 0.1.0 @ `92ed6c1532aa` |
+| Checks run | 15 (NOIP-POD-001, NOIP-POD-002, NOIP-POD-003, NOIP-POD-004, NOIP-POD-005, NOIP-POD-006, NOIP-POD-007, NOIP-POD-008, NOIP-POD-009, NOIP-NS-001, NOIP-NET-001, NOIP-NET-002, NOIP-RBAC-001, NOIP-RBAC-002, NOIP-RBAC-003) |
+| Excluded namespaces | kube-node-lease, kube-public, kube-system |
+
+## Summary
+
+Score **12/100** · 25 finding(s) · 2 critical, 9 high, 12 medium, 2 low · 14/15 checks failed · 10/10 controls failed
+
+> ⚠️ Kubernetes 1.31 is past upstream end of life (2025-11-11) and no longer receives security fixes (upstream schedule from kubernetes.io as of 2026-09-26; managed platforms such as EKS, GKE and AKS publish their own). A newer patch, 1.31.14, exists.
+
+## Executive summary
+
+Score 12/100. 25 finding(s) (2 critical, 9 high) from 14 of 15 checks; 12 have a deterministic fix.
+
+Fix these first (deterministic ranking: severity, then blast radius, then reach):
+
+1. **NOIP-POD-001: Privileged container**: critical, workload-scoped, 1 resource(s), 1 auto-fixable (e.g. `Pod/ci/debug-shell`)
+2. **NOIP-POD-002: Pod shares the host PID namespace**: critical, workload-scoped, 1 resource(s), 1 auto-fixable (e.g. `DaemonSet/monitoring/node-exporter`)
+3. **NOIP-RBAC-002: cluster-admin granted to a default ServiceAccount**: high, cluster-scoped, 1 resource(s) (e.g. `ClusterRoleBinding/ci-deployer-admin`)
+4. **NOIP-NET-001: Namespace has no NetworkPolicy**: high, namespace-scoped, 3 resource(s) (e.g. `Namespace/ci`, `Namespace/default`, `Namespace/payments`)
+5. **NOIP-POD-006: Container may run as root**: high, workload-scoped, 3 resource(s), 3 auto-fixable (e.g. `Deployment/payments/api`, `Pod/ci/debug-shell`)
+
+Quick wins with a deterministic fix: **12** · need a design decision: **13**
+
+## Findings
+
+### [CRITICAL] NOIP-POD-001 — Privileged container
+
+- Resource: `Pod/ci/debug-shell/shell`
+- Evidence: spec.containers[shell].securityContext.privileged=true
+- Remediation: Remove securityContext.privileged: true; grant only the specific Linux capabilities required.
+- Controls: CIS-5.2.1
+- References: NSA/CISA Kubernetes Pod security · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-001:Pod/ci/debug-shell/shell`
+
+### [CRITICAL] NOIP-POD-002 — Pod shares the host PID namespace
+
+- Resource: `DaemonSet/monitoring/node-exporter`
+- Evidence: spec.hostPID=true
+- Remediation: Remove hostPID: true from the pod spec.
+- Controls: CIS-5.2.2
+- References: NSA/CISA Kubernetes Pod security · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-002:DaemonSet/monitoring/node-exporter`
+
+### [HIGH] NOIP-NET-001 — Namespace has no NetworkPolicy
+
+- Resource: `Namespace/ci`
+- Evidence: 0 NetworkPolicy objects in namespace ci
+- Remediation: Add a default-deny NetworkPolicy (ingress and egress) plus explicit allow rules.
+- Controls: CIS-5.3.2
+- References: NSA/CISA Network policies · NIST SP 800-190 4.3.3 Poorly separated inter-container network traffic
+- Finding ID: `NOIP-NET-001:Namespace/ci`
+
+### [HIGH] NOIP-NET-001 — Namespace has no NetworkPolicy
+
+- Resource: `Namespace/default`
+- Evidence: 0 NetworkPolicy objects in namespace default
+- Remediation: Add a default-deny NetworkPolicy (ingress and egress) plus explicit allow rules.
+- Controls: CIS-5.3.2
+- References: NSA/CISA Network policies · NIST SP 800-190 4.3.3 Poorly separated inter-container network traffic
+- Finding ID: `NOIP-NET-001:Namespace/default`
+
+### [HIGH] NOIP-NET-001 — Namespace has no NetworkPolicy
+
+- Resource: `Namespace/payments`
+- Evidence: 0 NetworkPolicy objects in namespace payments
+- Remediation: Add a default-deny NetworkPolicy (ingress and egress) plus explicit allow rules.
+- Controls: CIS-5.3.2
+- References: NSA/CISA Network policies · NIST SP 800-190 4.3.3 Poorly separated inter-container network traffic
+- Finding ID: `NOIP-NET-001:Namespace/payments`
+
+### [HIGH] NOIP-POD-003 — Pod shares the host IPC namespace
+
+- Resource: `Pod/ci/debug-shell`
+- Evidence: spec.hostIPC=true
+- Remediation: Remove hostIPC: true from the pod spec.
+- Controls: CIS-5.2.3
+- References: NSA/CISA Kubernetes Pod security · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-003:Pod/ci/debug-shell`
+
+### [HIGH] NOIP-POD-004 — Pod uses the host network
+
+- Resource: `DaemonSet/monitoring/node-exporter`
+- Evidence: spec.hostNetwork=true
+- Remediation: Remove hostNetwork: true unless the workload is a node-level agent that genuinely needs it.
+- Controls: CIS-5.2.4
+- References: NSA/CISA Kubernetes Pod security; Network separation and hardening · NIST SP 800-190 4.4.3 Insecure container runtime configurations; 4.4.2 Unbounded network access from containers
+- Finding ID: `NOIP-POD-004:DaemonSet/monitoring/node-exporter`
+
+### [HIGH] NOIP-POD-006 — Container may run as root
+
+- Resource: `Deployment/payments/api/api`
+- Evidence: spec.containers[api]: runAsNonRoot and runAsUser unset at pod and container level
+- Remediation: Set runAsNonRoot: true (pod or container securityContext) and a non-zero runAsUser.
+- Controls: CIS-5.2.6
+- References: NSA/CISA Non-root containers and "rootless" container engines · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-006:Deployment/payments/api/api`
+
+### [HIGH] NOIP-POD-006 — Container may run as root
+
+- Resource: `Deployment/payments/api/migrate`
+- Evidence: spec.initContainers[migrate]: runAsNonRoot and runAsUser unset at pod and container level
+- Remediation: Set runAsNonRoot: true (pod or container securityContext) and a non-zero runAsUser.
+- Controls: CIS-5.2.6
+- References: NSA/CISA Non-root containers and "rootless" container engines · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-006:Deployment/payments/api/migrate`
+
+### [HIGH] NOIP-POD-006 — Container may run as root
+
+- Resource: `Pod/ci/debug-shell/shell`
+- Evidence: spec.containers[shell]: runAsNonRoot and runAsUser unset at pod and container level
+- Remediation: Set runAsNonRoot: true (pod or container securityContext) and a non-zero runAsUser.
+- Controls: CIS-5.2.6
+- References: NSA/CISA Non-root containers and "rootless" container engines · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-006:Pod/ci/debug-shell/shell`
+
+### [HIGH] NOIP-RBAC-002 — cluster-admin granted to a default ServiceAccount
+
+- Resource: `ClusterRoleBinding/ci-deployer-admin`
+- Evidence: roleRef=ClusterRole/cluster-admin subject=ServiceAccount/ci/default
+- Remediation: Create a dedicated ServiceAccount with a least-privilege role; never bind cluster-admin to `default`.
+- Controls: CIS-5.1.1, CIS-5.1.5
+- References: NSA/CISA Authentication and authorization · NIST SP 800-190 4.3.1 Unbounded administrative access
+- Finding ID: `NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin`
+
+### [MEDIUM] NOIP-NET-002 — NetworkPolicy allows egress to any destination
+
+- Resource: `NetworkPolicy/shop/allow-egress`
+- Evidence: spec.egress[0] has no 'to' selector (all destinations allowed)
+- Remediation: Give every egress rule an explicit `to` (namespaceSelector/podSelector/ipBlock) and ports.
+- Controls: —
+- References: NSA/CISA Network policies · NIST SP 800-190 4.4.2 Unbounded network access from containers
+- Finding ID: `NOIP-NET-002:NetworkPolicy/shop/allow-egress`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/ci`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- References: NSA/CISA Pod security enforcement · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-NS-001:Namespace/ci`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/default`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- References: NSA/CISA Pod security enforcement · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-NS-001:Namespace/default`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/monitoring`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"]=privileged
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- References: NSA/CISA Pod security enforcement · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-NS-001:Namespace/monitoring`
+
+### [MEDIUM] NOIP-NS-001 — Pod Security Admission not enforcing baseline or restricted
+
+- Resource: `Namespace/payments`
+- Evidence: metadata.labels["pod-security.kubernetes.io/enforce"] unset (no admission-time pod security)
+- Remediation: Label the namespace pod-security.kubernetes.io/enforce=restricted (or baseline where restricted is not yet feasible), after a dry run with pod-security.kubernetes.io/warn.
+- Controls: —
+- References: NSA/CISA Pod security enforcement · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-NS-001:Namespace/payments`
+
+### [MEDIUM] NOIP-POD-005 — Privilege escalation not disabled
+
+- Resource: `DaemonSet/monitoring/node-exporter/node-exporter`
+- Evidence: spec.containers[node-exporter].securityContext.allowPrivilegeEscalation=unset
+- Remediation: Set securityContext.allowPrivilegeEscalation: false on every container.
+- Controls: CIS-5.2.5
+- References: NSA/CISA Kubernetes Pod security · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-005:DaemonSet/monitoring/node-exporter/node-exporter`
+
+### [MEDIUM] NOIP-POD-005 — Privilege escalation not disabled
+
+- Resource: `Pod/ci/debug-shell/shell`
+- Evidence: spec.containers[shell].securityContext.allowPrivilegeEscalation=unset
+- Remediation: Set securityContext.allowPrivilegeEscalation: false on every container.
+- Controls: CIS-5.2.5
+- References: NSA/CISA Kubernetes Pod security · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-005:Pod/ci/debug-shell/shell`
+
+### [MEDIUM] NOIP-POD-007 — Writable root filesystem
+
+- Resource: `Deployment/shop/frontend/frontend`
+- Evidence: spec.containers[frontend].securityContext.readOnlyRootFilesystem=false
+- Remediation: Set securityContext.readOnlyRootFilesystem: true and mount emptyDir volumes for writable paths.
+- Controls: —
+- References: NSA/CISA Immutable container file systems · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-007:Deployment/shop/frontend/frontend`
+
+### [MEDIUM] NOIP-POD-007 — Writable root filesystem
+
+- Resource: `Pod/ci/debug-shell/shell`
+- Evidence: spec.containers[shell].securityContext.readOnlyRootFilesystem=unset
+- Remediation: Set securityContext.readOnlyRootFilesystem: true and mount emptyDir volumes for writable paths.
+- Controls: —
+- References: NSA/CISA Immutable container file systems · NIST SP 800-190 4.4.3 Insecure container runtime configurations
+- Finding ID: `NOIP-POD-007:Pod/ci/debug-shell/shell`
+
+### [MEDIUM] NOIP-POD-009 — Secret exposed as environment variable
+
+- Resource: `Deployment/payments/api/api`
+- Evidence: spec.containers[api]: env[STRIPE_KEY] &lt;- secret stripe/api-key
+- Remediation: Mount the secret as a read-only volume instead of env.valueFrom.secretKeyRef / envFrom.secretRef.
+- Controls: CIS-5.4.1
+- References: NSA/CISA Secrets · NIST SP 800-190 —
+- Finding ID: `NOIP-POD-009:Deployment/payments/api/api`
+
+### [MEDIUM] NOIP-POD-009 — Secret exposed as environment variable
+
+- Resource: `Deployment/payments/api/migrate`
+- Evidence: spec.initContainers[migrate]: envFrom &lt;- secret payments-db
+- Remediation: Mount the secret as a read-only volume instead of env.valueFrom.secretKeyRef / envFrom.secretRef.
+- Controls: CIS-5.4.1
+- References: NSA/CISA Secrets · NIST SP 800-190 —
+- Finding ID: `NOIP-POD-009:Deployment/payments/api/migrate`
+
+### [MEDIUM] NOIP-RBAC-003 — Role bound to a default ServiceAccount
+
+- Resource: `RoleBinding/payments/payments-reader`
+- Evidence: roleRef=Role/config-reader subject=ServiceAccount/payments/default
+- Remediation: Bind the role to a named ServiceAccount and leave `default` without permissions.
+- Controls: CIS-5.1.5
+- References: NSA/CISA Authentication and authorization · NIST SP 800-190 4.3.2 Unauthorized access
+- Finding ID: `NOIP-RBAC-003:RoleBinding/payments/payments-reader`
+
+### [LOW] NOIP-POD-008 — Missing CPU or memory limit
+
+- Resource: `Deployment/shop/frontend/frontend`
+- Evidence: spec.containers[frontend].resources.limits missing cpu, memory
+- Remediation: Define resources.limits.cpu and resources.limits.memory.
+- Controls: —
+- References: NSA/CISA Resource policies · NIST SP 800-190 —
+- Finding ID: `NOIP-POD-008:Deployment/shop/frontend/frontend`
+
+### [LOW] NOIP-POD-008 — Missing CPU or memory limit
+
+- Resource: `Pod/ci/debug-shell/shell`
+- Evidence: spec.containers[shell].resources.limits missing cpu, memory
+- Remediation: Define resources.limits.cpu and resources.limits.memory.
+- Controls: —
+- References: NSA/CISA Resource policies · NIST SP 800-190 —
+- Finding ID: `NOIP-POD-008:Pod/ci/debug-shell/shell`
+
+## Controls
+
+| Control | Title | Status | Findings | SOC 2 (ref) | HIPAA (ref) |
+|---|---|---|---|---|---|
+| CIS-5.1.1 | cluster-admin role is only used where required | ❌ fail | 1 | CC6.1, CC6.3 | 164.312(a)(1) |
+| CIS-5.1.5 | Default service accounts are not actively used | ❌ fail | 2 | CC6.1, CC6.3 | 164.312(a)(1) |
+| CIS-5.2.1 | Minimize the admission of privileged containers | ❌ fail | 1 | CC6.1, CC6.6 | 164.312(a)(1), 164.312(c)(1) |
+| CIS-5.2.2 | Minimize containers sharing the host PID namespace | ❌ fail | 1 | CC6.1 | 164.312(a)(1) |
+| CIS-5.2.3 | Minimize containers sharing the host IPC namespace | ❌ fail | 1 | CC6.1 | 164.312(a)(1) |
+| CIS-5.2.4 | Minimize containers sharing the host network namespace | ❌ fail | 1 | CC6.1, CC6.6 | 164.312(a)(1) |
+| CIS-5.2.5 | Minimize containers with allowPrivilegeEscalation | ❌ fail | 2 | CC6.1, CC6.6 | 164.312(c)(1) |
+| CIS-5.2.6 | Minimize the admission of root containers | ❌ fail | 3 | CC6.1 | 164.312(a)(1) |
+| CIS-5.3.2 | All namespaces have NetworkPolicies defined | ❌ fail | 3 | CC6.6, CC6.7 | 164.312(a)(1), 164.312(e)(1) |
+| CIS-5.4.1 | Prefer secrets as files over secrets as environment variables | ❌ fail | 2 | CC6.1, CC6.7 | 164.312(a)(2)(iv), 164.312(e)(2)(ii) |
+
+_SOC 2, HIPAA, NSA/CISA and NIST SP 800-190 identifiers are reference mappings, not an attestation. NOIP checks a workload subset of CIS Kubernetes Benchmark Level 1 and does not assess control-plane, node or process controls._
+
+## Risk chains
+
+_Findings that compound: together they give an attacker more than each does alone. Derived from what NOIP already reads; not part of the score._
+
+### critical: NodePort Service monitoring/node-exporter exposes workloads that share host namespaces or privileges
+
+1. Service monitoring/node-exporter (type NodePort) is reachable from outside the cluster and selects DaemonSet/monitoring/node-exporter.
+2. That workload can reach host processes or devices (NOIP-POD-002, NOIP-POD-004), so a remote exploit of the exposed port lands with host-level reach.
+
+Findings: `NOIP-POD-002:DaemonSet/monitoring/node-exporter`, `NOIP-POD-004:DaemonSet/monitoring/node-exporter`
+
+> Exposure is judged from Service type (LoadBalancer, NodePort) or externalIPs and label selectors; Ingress, Gateway and NetworkPolicy reachability are not evaluated.
+
+### critical: Workloads running as ci/default carry a cluster-admin token
+
+1. 1 workload(s) run as ServiceAccount ci/default with its token mounted (Pod/ci/debug-shell).
+2. ClusterRoleBinding ci-deployer-admin grants that ServiceAccount cluster-admin.
+3. At least one of them also shares host namespaces or privileges (NOIP-POD-001), widening what a compromise of it reaches on the node.
+
+Findings: `NOIP-POD-001:Pod/ci/debug-shell/shell`, `NOIP-RBAC-002:ClusterRoleBinding/ci-deployer-admin`
+
+> Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).
+
+### medium: Every workload in payments without its own ServiceAccount inherits Role config-reader
+
+1. RoleBinding payments/payments-reader grants Role config-reader in namespace payments to ServiceAccount payments/default.
+2. 1 workload(s) run as payments/default with its token mounted (Deployment/payments/api), so each of them holds those permissions, and so will any new workload in payments that doesn't name a ServiceAccount.
+
+Findings: `NOIP-RBAC-003:RoleBinding/payments/payments-reader`
+
+> Token mounting was checked at pod and ServiceAccount level (the pod setting wins, as in Kubernetes).
+
+## Pod Security readiness
+
+The highest Pod Security Standard each namespace could enforce today without rejecting any current pod (policy version 1.31, evaluated with a port of the upstream Pod Security Admission checks). A planning aid; it does not affect the score.
+
+| Namespace | Enforced now | Could enforce today | Pods | Blocking the next level |
+|---|---|---|---|---|
+| ci | not set | **privileged** | 1 | **Pod/ci/debug-shell**: hostIPC=true; privileged containers (shell) |
+| default | not set | **restricted** | 0 | — |
+| monitoring | privileged | **privileged** | 3 | **DaemonSet/monitoring/node-exporter**: hostNetwork, hostPID=true |
+| payments | not set | **baseline** | 1 | **Deployment/payments/api**: pod or containers must set runAsNonRoot=true (migrate, api); pod or containers must set seccompProfile RuntimeDefault or Localhost (migrate, api) |
+| shop | restricted | **restricted** | 3 | — |
