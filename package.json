@@ -1,6 +1,6 @@
 {
   "name": "noip",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "NOIP — read-only Kubernetes posture scanner with deterministic checks and an optional, redacted LLM explanation layer.",
   "license": "MIT",
   "private": true,
