@@ -2,6 +2,10 @@
 
 NOIP is a small, read-only Kubernetes posture scanner. It runs 15 deterministic checks covering pod security, NetworkPolicy coverage, RBAC, and the workload subset of CIS Kubernetes Benchmark Level 1. It produces a report in which every finding cites a concrete resource and field. An optional LLM layer can *explain* the findings, but it cannot add to or change them.
 
+![NOIP demo: version check, demo scan, live kind-cluster scan, --fail-on pipeline gate, audit evidence bundle with verify-bundle, ValidatingAdmissionPolicy generation, and a Spanish-language report](docs/demo.gif)
+
+*40 seconds, real commands against a seeded `kind` cluster: `noip scan --demo` · live scan (score 35/100) · `--fail-on high` as a pipeline gate (exit code `2`) · `--bundle` + `noip verify-bundle` · `noip policy` emitting a ValidatingAdmissionPolicy · `--lang es`.*
+
 CI verifies it on every PR. A real `kind` cluster is seeded with known misconfigurations and scanned by NOIP under a ServiceAccount that has no `secrets` access. The result must match a golden file exactly, and the report is uploaded as a build artifact.
 
 **What it is not:** network traffic analytics, anomaly detection, incident response, continuous monitoring, or a compliance attestation. SOC 2 and HIPAA identifiers in the report are *reference mappings*, and every report states this.
