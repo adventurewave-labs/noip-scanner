@@ -109,6 +109,7 @@ On kind, the clean namespace now enforces `restricted` for real. That also prove
 | 43 | Exposure: Services in the snapshot (type, selector, externalIPs only; RBAC gains `services`); risk chain for externally reachable workloads with host access; cluster-admin chains note exposure | shipped (`loop/r43-exposure`) |
 | 44 | Independent review #6, with fixes: one definition of "new" for the baseline gate and SARIF, action baseline errors are explained, severity-filter drift warning, exposure lists every Service, the internal-LB caveat, exposure grouping made linear | shipped (`loop/r44-review6`) |
 | 45 | Final wrap-up: stack health for #42–#45 | shipped (`loop/r45-final`) |
+| 46 | Fix found by the first real kind run: admission rules read `request.subResource`, which is absent on a plain CREATE, so evaluation errored and `failurePolicy: Ignore` admitted silently (only POD-008 warned). Guarded with `has()`; the test harness now omits the field like the API server | shipped (`loop/r46-vap-subresource`) |
 
 ## Later
 These are candidates, not commitments:

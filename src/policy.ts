@@ -19,10 +19,13 @@ const POD_SPEC =
 const CONTAINERS = "variables.spec.containers + (has(variables.spec.initContainers) ? variables.spec.initContainers : [])";
 /** Ephemeral containers (`kubectl debug`), added to running pods through the pods/ephemeralcontainers subresource. */
 const EPHEMERAL = "has(variables.spec.ephemeralContainers) ? variables.spec.ephemeralContainers : []";
+/** The request targets the ephemeralcontainers subresource. `subResource` is absent on a plain CREATE, and reading an
+ * absent field is a CEL evaluation error, which failurePolicy Ignore would silently turn into "admit" (found by the kind job). */
+const ON_EPHEMERAL = "(has(request.subResource) && request.subResource == 'ephemeralcontainers')";
 /** On the ephemeralcontainers subresource, only containers not already on the pod: old ones can't be removed, so judging
  * them again would block every later `kubectl debug` on that pod. */
 const NEW_EPHEMERAL =
-  "request.subResource == 'ephemeralcontainers' && oldObject != null && has(oldObject.spec.ephemeralContainers) ? " +
+  `${ON_EPHEMERAL} && oldObject != null && has(oldObject.spec.ephemeralContainers) ? ` +
   'variables.ephemeral.filter(c, !oldObject.spec.ephemeralContainers.exists(o, o.name == c.name)) : variables.ephemeral';
 
 const sc = (field: string) => `has(c.securityContext) && has(c.securityContext.${field})`;
@@ -48,7 +51,7 @@ const coversEphemeral = (id: string) => id in CONTAINER_PREDICATES && !EPHEMERAL
 const containerRule = (id: string, p: string) =>
   coversEphemeral(id)
     ? // On the ephemeralcontainers subresource only the debug containers are new; the rest were admitted earlier.
-      `(request.subResource == 'ephemeralcontainers' || variables.containers.all(c, ${p})) && variables.newEphemeral.all(c, ${p})`
+      `(${ON_EPHEMERAL} || variables.containers.all(c, ${p})) && variables.newEphemeral.all(c, ${p})`
     : `variables.containers.all(c, ${p})`;
 
 export const CEL_RULES: Record<string, string> = {

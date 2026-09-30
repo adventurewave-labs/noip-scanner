@@ -18,7 +18,7 @@ const docs = (opts = {}) => policyDocuments(opts) as Doc[];
 const policies = () => docs().filter((d) => d.kind === 'ValidatingAdmissionPolicy');
 
 /** Evaluate a generated policy the way the API server does: variables first, then the validation. */
-function admits(policy: Doc, object: unknown, request = { operation: 'CREATE', subResource: '' }, oldObject: unknown = null): boolean {
+function admits(policy: Doc, object: unknown, request: Record<string, string> = { operation: 'CREATE' }, oldObject: unknown = null): boolean {
   const variables: Record<string, unknown> = {};
   const ctx = { object, oldObject, variables, request };
   for (const v of (policy.spec.variables ?? []) as Array<{ name: string; expression: string }>) variables[v.name] = evaluate(v.expression, ctx);
