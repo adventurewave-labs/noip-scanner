@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/banner.svg" alt="noip-scanner — animated banner" width="100%"></p>
+
 # NOIP — Kubernetes posture scanner
 
 NOIP is a small, read-only Kubernetes posture scanner. It runs 15 deterministic checks covering pod security, NetworkPolicy coverage, RBAC, and the workload subset of CIS Kubernetes Benchmark Level 1. It produces a report in which every finding cites a concrete resource and field. An optional LLM layer can *explain* the findings, but it cannot add to or change them.
