@@ -1,0 +1,10 @@
+# noip-scanner
+
+> NOIP: read-only Kubernetes posture scanner. Deterministic pod-security, NetworkPolicy, RBAC and CIS L1 checks, golden-tested against kind in CI, with an optional redacted LLM explanation layer.
+
+noip-scanner is maintained by Adventure Wave Labs (The lab for agentic developer tooling).
+
+## Links
+
+- [Landing page](https://adventurewave-labs.github.io/noip-scanner/): overview, features, FAQ
+- [Source code](https://github.com/adventurewave-labs/noip-scanner): README, issues, releases
